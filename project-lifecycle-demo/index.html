@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>项目全生命周期管理平台</title>
+<style>
+/* ===== 全局重置与变量 ===== */
+:root {
+  --primary: #1677ff;
+  --primary-hover: #4096ff;
+  --primary-active: #0958d9;
+  --success: #52c41a;
+  --warning: #faad14;
+  --error: #ff4d4f;
+  --text-primary: rgba(0, 0, 0, 0.88);
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-tertiary: rgba(0, 0, 0, 0.45);
+  --text-disabled: rgba(0, 0, 0, 0.25);
+  --border: #d9d9d9;
+  --border-light: #f0f0f0;
+  --bg-page: #f5f5f5;
+  --bg-card: #ffffff;
+  --bg-sidebar: #001529;
+  --bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --bg-sidebar-active: #1677ff;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --shadow-card: 0 1px 2px 0 rgba(0,0,0,0.03), 0 1px 6px -1px rgba(0,0,0,0.02), 0 2px 4px 0 rgba(0,0,0,0.02);
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  line-height: 1.5715;
+  min-width: 1200px;
+}
+
+/* ===== 布局 ===== */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===== 侧边栏 ===== */
+.sidebar {
+  width: 240px;
+  background: var(--bg-sidebar);
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.sidebar-logo .logo-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-logo .logo-icon svg { width: 18px; height: 18px; }
+
+.sidebar-logo .logo-text {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu { list-style: none; padding: 8px 0; }
+
+.menu-item {
+  position: relative;
+}
+
+.menu-title {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  height: 44px;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  font-size: 14px;
+  user-select: none;
+}
+
+.menu-title:hover {
+  color: #fff;
+}
+
+.menu-title .menu-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 12px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-title .menu-icon svg { width: 16px; height: 16px; }
+
+.menu-title .menu-arrow {
+  margin-left: auto;
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s;
+  opacity: 0.65;
+}
+
+.menu-item.open .menu-arrow {
+  transform: rotate(90deg);
+}
+
+.submenu {
+  list-style: none;
+  background: rgba(0,0,0,0.2);
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+}
+
+.menu-item.open .submenu {
+  max-height: 500px;
+}
+
+.submenu-item {
+  padding: 0 24px 0 54px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  color: rgba(255,255,255,0.65);
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  font-size: 14px;
+}
+
+.submenu-item:hover {
+  color: #fff;
+}
+
+.submenu-item.active {
+  color: #fff;
+  background: var(--primary);
+}
+
+/* ===== 主内容区 ===== */
+.main-wrapper {
+  flex: 1;
+  margin-left: 240px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ===== 顶部导航 ===== */
+.header {
+  height: 56px;
+  background: #fff;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 1px 4px rgba(0,21,41,0.08);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.breadcrumb-item { color: var(--text-secondary); }
+.breadcrumb-item.current { color: var(--text-primary); font-weight: 500; }
+.breadcrumb-sep { margin: 0 8px; color: var(--text-tertiary); }
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.2s, color 0.2s;
+  position: relative;
+}
+
+.header-icon-btn:hover {
+  background: rgba(0,0,0,0.04);
+  color: var(--text-primary);
+}
+
+.header-icon-btn svg { width: 18px; height: 18px; }
+
+.badge-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: var(--error);
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  height: 40px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 4px;
+}
+
+.user-info:hover { background: rgba(0,0,0,0.04); }
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.user-name { font-size: 14px; color: var(--text-primary); }
+
+/* ===== 内容区 ===== */
+.content {
+  padding: 24px;
+  flex: 1;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+/* ===== 卡片 ===== */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 16px;
+}
+
+.card-body { padding: 20px 24px; }
+
+/* ===== 筛选表单 ===== */
+.filter-form {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px 24px;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+}
+
+.filter-label {
+  width: 80px;
+  text-align: right;
+  padding-right: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.filter-control {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ===== 表单控件 ===== */
+.input, .select {
+  width: 100%;
+  height: 32px;
+  padding: 4px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  font-family: var(--font);
+}
+
+.input:hover, .select:hover { border-color: var(--primary-hover); }
+
+.input:focus, .select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(22,119,255,0.1);
+}
+
+.input::placeholder { color: var(--text-disabled); }
+
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23bfbfbf' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+.input-search {
+  position: relative;
+}
+
+.input-search .input { padding-right: 32px; }
+
+.input-search .search-icon {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.input-search .search-icon svg { width: 14px; height: 14px; }
+
+.range-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.range-picker .input { flex: 1; }
+
+.range-picker .range-sep { color: var(--text-tertiary); }
+
+/* ===== 按钮 ===== */
+.btn {
+  height: 32px;
+  padding: 4px 15px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font);
+  white-space: nowrap;
+}
+
+.btn:hover {
+  color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: #fff;
+}
+
+.btn-primary:active {
+  background: var(--primary-active);
+  border-color: var(--primary-active);
+}
+
+.btn svg { width: 14px; height: 14px; }
+
+.filter-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* ===== 统计条 ===== */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.stats-bar .stat-item { display: flex; align-items: center; gap: 4px; }
+.stats-bar .stat-value { color: var(--primary); font-weight: 600; font-size: 16px; }
+.stats-bar .stat-label { color: var(--text-secondary); }
+
+/* ===== 表格工具栏 ===== */
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.table-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-toolbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.table-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+}
+
+.toolbar-icon-btn:hover {
+  color: var(--primary);
+  background: rgba(22,119,255,0.06);
+}
+
+.toolbar-icon-btn svg { width: 16px; height: 16px; }
+
+/* ===== 表格 ===== */
+.table-container {
+  overflow-x: auto;
+}
+
+table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 1400px;
+}
+
+.data-table thead th {
+  background: #fafafa;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+.data-table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background 0.2s;
+}
+
+.data-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.data-table .col-checkbox { width: 48px; text-align: center; }
+.data-table .col-index { width: 60px; text-align: center; color: var(--text-secondary); }
+.data-table .col-amount { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table .col-actions { width: 180px; text-align: center; }
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+  vertical-align: middle;
+}
+
+.checkbox:hover { border-color: var(--primary); }
+
+.checkbox.checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.checkbox.checked svg { width: 12px; height: 12px; color: #fff; }
+
+/* ===== 标签 ===== */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.tag-blue { color: var(--primary); background: #e6f4ff; border-color: #91caff; }
+.tag-green { color: var(--success); background: #f6ffed; border-color: #b7eb8f; }
+.tag-orange { color: var(--warning); background: #fffbe6; border-color: #ffe58f; }
+.tag-red { color: var(--error); background: #fff2f0; border-color: #ffccc7; }
+.tag-default { color: var(--text-secondary); background: #fafafa; border-color: #d9d9d9; }
+.tag-cyan { color: #13c2c2; background: #e6fffb; border-color: #87e8de; }
+.tag-purple { color: #722ed1; background: #f9f0ff; border-color: #d3adf7; }
+
+/* ===== 操作链接 ===== */
+.action-link {
+  color: var(--primary);
+  cursor: pointer;
+  transition: color 0.2s;
+  font-size: 14px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font);
+}
+
+.action-link:hover { color: var(--primary-hover); }
+.action-link + .action-link { margin-left: 12px; }
+.action-link.danger { color: var(--error); }
+.action-link.danger:hover { color: #ff7875; }
+
+/* ===== 项目简介截断 ===== */
+.desc-cell {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ===== 分页 ===== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  gap: 8px;
+}
+
+.pagination-info {
+  color: var(--text-secondary);
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-family: var(--font);
+}
+
+.page-btn:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.page-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.page-btn:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  border-color: var(--border-light);
+}
+
+.page-size-select {
+  width: auto;
+  height: 32px;
+  padding: 0 24px 0 11px;
+}
+
+.page-jumper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+
+.page-jumper .input {
+  width: 56px;
+  text-align: center;
+}
+
+/* ===== 空状态 ===== */
+.empty-state {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+/* ===== 滚动条样式 ===== */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
+</style>
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- ===== 侧边栏 ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l4-4 4 4 5-5"/>
+        </svg>
+      </div>
+      <span class="logo-text">项目全周期管理</span>
+    </div>
+    <ul class="menu" id="mainMenu">
+      <li class="menu-item open">
+        <div class="menu-title" onclick="toggleMenu(this)">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+          </span>
+          项目全生命周期管理
+          <svg class="menu-arrow" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l4 4-4 4z"/></svg>
+        </div>
+        <ul class="submenu">
+          <li class="submenu-item" onclick="selectMenu(this,'项目谋划')">项目谋划</li>
+          <li class="submenu-item active" onclick="selectMenu(this,'跟踪洽谈')">跟踪洽谈（在谈）</li>
+          <li class="submenu-item" onclick="selectMenu(this,'签约注册')">签约注册</li>
+          <li class="submenu-item" onclick="selectMenu(this,'项目落地')">项目落地</li>
+          <li class="submenu-item" onclick="selectMenu(this,'重复研判')">项目重复研判</li>
+          <li class="submenu-item" onclick="selectMenu(this,'项目退库')">项目退库</li>
+        </ul>
+      </li>
+      <li class="menu-item">
+        <div class="menu-title" onclick="toggleMenu(this)">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+            </svg>
+          </span>
+          绩效考核
+          <svg class="menu-arrow" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l4 4-4 4z"/></svg>
+        </div>
+        <ul class="submenu">
+          <li class="submenu-item" onclick="selectMenu(this,'考核管理')">考核管理</li>
+        </ul>
+      </li>
+      <li class="menu-item">
+        <div class="menu-title" onclick="toggleMenu(this)">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 21V9"/>
+            </svg>
+          </span>
+          统计看板
+          <svg class="menu-arrow" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l4 4-4 4z"/></svg>
+        </div>
+        <ul class="submenu">
+          <li class="submenu-item" onclick="selectMenu(this,'项目看板')">项目统计看板</li>
+        </ul>
+      </li>
+      <li class="menu-item">
+        <div class="menu-title" onclick="toggleMenu(this)">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </span>
+          系统管理
+          <svg class="menu-arrow" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l4 4-4 4z"/></svg>
+        </div>
+        <ul class="submenu">
+          <li class="submenu-item" onclick="selectMenu(this,'账号管理')">账号管理</li>
+          <li class="submenu-item" onclick="selectMenu(this,'角色管理')">角色管理</li>
+          <li class="submenu-item" onclick="selectMenu(this,'日志管理')">日志管理</li>
+          <li class="submenu-item" onclick="selectMenu(this,'字段管理')">字段管理</li>
+          <li class="submenu-item" onclick="selectMenu(this,'超期设置')">超期设置</li>
+        </ul>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- ===== 主内容 ===== -->
+  <div class="main-wrapper">
+    <!-- 顶部导航 -->
+    <header class="header">
+      <div class="breadcrumb">
+        <span class="breadcrumb-item">项目全生命周期管理</span>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-item current" id="breadcrumbCurrent">跟踪洽谈（在谈）</span>
+      </div>
+      <div class="header-right">
+        <div class="header-icon-btn" title="消息通知">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 01-3.46 0"/>
+          </svg>
+          <span class="badge-dot"></span>
+        </div>
+        <div class="header-icon-btn" title="帮助">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="user-info">
+          <div class="avatar">康</div>
+          <span class="user-name">康康</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 内容区 -->
+    <main class="content">
+      <div class="page-title">跟踪洽谈（在谈）</div>
+
+      <!-- 筛选卡片 -->
+      <div class="card">
+        <div class="card-body">
+          <div class="filter-form">
+            <div class="filter-item">
+              <span class="filter-label">项目名称</span>
+              <div class="filter-control">
+                <div class="input-search">
+                  <input type="text" class="input" placeholder="请输入项目名称" id="filterName">
+                  <span class="search-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="filter-item">
+              <span class="filter-label">产业类别</span>
+              <div class="filter-control">
+                <select class="select" id="filterIndustryType">
+                  <option value="">全部</option>
+                  <option value="农业">农业</option>
+                  <option value="工业">工业</option>
+                  <option value="服务业">服务业</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-item">
+              <span class="filter-label">行业类别</span>
+              <div class="filter-control">
+                <select class="select" id="filterIndustry">
+                  <option value="">全部</option>
+                  <option value="大健康和生物技术">大健康和生物技术</option>
+                  <option value="超级计算和人工智能">超级计算和人工智能</option>
+                  <option value="光芯屏端网新一代信息技术">光芯屏端网新一代信息技术</option>
+                  <option value="新能源类">新能源类</option>
+                  <option value="其他类">其他类</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-item">
+              <span class="filter-label">承接状态</span>
+              <div class="filter-control">
+                <select class="select" id="filterStatus">
+                  <option value="">全部</option>
+                  <option value="在谈">在谈</option>
+                  <option value="已签约">已签约</option>
+                  <option value="已落地">已落地</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-item">
+              <span class="filter-label">审核状态</span>
+              <div class="filter-control">
+                <select class="select" id="filterAudit">
+                  <option value="">全部</option>
+                  <option value="待审核">待审核</option>
+                  <option value="已审核通过">已审核通过</option>
+                  <option value="已驳回">已驳回</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-item">
+              <span class="filter-label">申报时间</span>
+              <div class="filter-control">
+                <div class="range-picker">
+                  <input type="date" class="input" id="filterDateStart" value="2026-01-01">
+                  <span class="range-sep">~</span>
+                  <input type="date" class="input" id="filterDateEnd" value="2026-08-26">
+                </div>
+              </div>
+            </div>
+            <div class="filter-item">
+              <span class="filter-label">项目分类</span>
+              <div class="filter-control">
+                <select class="select" id="filterCategory">
+                  <option value="">全部</option>
+                  <option value="政策类">政策类</option>
+                  <option value="投资类">投资类</option>
+                  <option value="供地类">供地类</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-item">
+              <span class="filter-label">预警状态</span>
+              <div class="filter-control">
+                <select class="select" id="filterWarning">
+                  <option value="">全部</option>
+                  <option value="正常">正常</option>
+                  <option value="黄色预警">黄色预警</option>
+                  <option value="红色预警">红色预警</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-actions">
+              <button class="btn btn-primary" onclick="doSearch()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                搜索
+              </button>
+              <button class="btn" onclick="doExport()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                导出
+              </button>
+              <button class="btn" onclick="doReset()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="1 4 1 10 7 10"/>
+                  <path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+                </svg>
+                重置
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 表格卡片 -->
+      <div class="card">
+        <!-- 统计条 -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <span class="stat-label">当页投资总额：</span>
+            <span class="stat-value" id="currentPageTotal">0.0</span>
+            <span class="stat-label">亿元</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">筛选投资总额：</span>
+            <span class="stat-value" id="filteredTotal">0.0</span>
+            <span class="stat-label">亿元</span>
+          </div>
+        </div>
+
+        <!-- 工具栏 -->
+        <div class="table-toolbar">
+          <div class="table-toolbar-left">
+            <span class="table-toolbar-title">在谈项目列表</span>
+          </div>
+          <div class="table-toolbar-right">
+            <button class="toolbar-icon-btn" title="密度" onclick="toggleDensity()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
+            <button class="toolbar-icon-btn" title="刷新" onclick="refreshTable()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+              </svg>
+            </button>
+            <button class="toolbar-icon-btn" title="表头管理">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M3 12h18M3 18h18"/>
+                <circle cx="7" cy="6" r="1.5" fill="currentColor"/>
+                <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                <circle cx="17" cy="18" r="1.5" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 表格 -->
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-checkbox"><span class="checkbox" id="selectAll" onclick="toggleSelectAll()"></span></th>
+                <th class="col-index">序号</th>
+                <th>申报人</th>
+                <th>项目状态</th>
+                <th>项目名称</th>
+                <th>来源地</th>
+                <th>楚商类型</th>
+                <th>内外资</th>
+                <th>产业类别</th>
+                <th>行业类别</th>
+                <th>项目简介</th>
+                <th>投资主体</th>
+                <th class="col-amount">投资金额（亿元）</th>
+                <th>企业性质</th>
+                <th>企业类别</th>
+                <th>预警状态</th>
+                <th>审核状态</th>
+                <th class="col-actions">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- 分页 -->
+        <div class="pagination">
+          <span class="pagination-info" id="totalInfo">共 0 条</span>
+          <select class="select page-size-select" id="pageSize" onchange="changePageSize()">
+            <option value="10">10 条/页</option>
+            <option value="20">20 条/页</option>
+            <option value="50">50 条/页</option>
+          </select>
+          <button class="page-btn" id="prevBtn" onclick="prevPage()" disabled>
+            <svg viewBox="0 0 12 12" fill="currentColor" width="12" height="12"><path d="M8 2L4 6l4 4z"/></svg>
+          </button>
+          <div id="pageNumbers" style="display:flex;gap:8px;"></div>
+          <button class="page-btn" id="nextBtn" onclick="nextPage()">
+            <svg viewBox="0 0 12 12" fill="currentColor" width="12" height="12"><path d="M4 2l4 4-4 4z"/></svg>
+          </button>
+          <div class="page-jumper">
+            前往
+            <input type="number" class="input" id="jumpInput" min="1" value="1" onkeydown="if(event.key==='Enter')jumpPage()">
+            页
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+// ===== Mock 数据（来自市级平台导出表格在谈列表） =====
+const mockData = [
+  {
+    id: 1, applicant: '驻沪办 蔡威', name: '人工智能药物研发及产业化平台建设项目',
+    source: '上海-上海市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '上海溪长生物2023年成立于上海青浦，专注于人工智能驱动的创新药物研发...',
+    capital: '内资', industryType: '工业', industry: '大健康和生物技术',
+    investor: '上海溪长生物技术有限公司', amount: 1.2,
+    enterpriseNature: '民企', enterpriseCategory: '国家级高新技术企业',
+    warning: '黄色预警', audit: '已审核通过', applyTime: '2026-05-08'
+  },
+  {
+    id: 2, applicant: '驻沪办 蔡威', name: '中盛智能巡检机器人生产线项目',
+    source: '安徽-合肥市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '安徽中盛智能科技有限公司是专注环境领域智能装备研发的高新技术企业...',
+    capital: '内资', industryType: '工业', industry: '超级计算和人工智能',
+    investor: '安徽中盛智能科技有限公司', amount: 1.5,
+    enterpriseNature: '民企', enterpriseCategory: '国家级高新技术企业',
+    warning: '黄色预警', audit: '已审核通过', applyTime: '2026-05-08'
+  },
+  {
+    id: 3, applicant: '驻沪办 蔡威', name: '外延世半导体显示设备生产基地项目',
+    source: '江苏-苏州市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '苏州外延世是国家级高新技术企业，主营泛半导体精密设备研发与制造...',
+    capital: '内资', industryType: '工业', industry: '光芯屏端网新一代信息技术',
+    investor: '苏州外延世电子材料有限公司', amount: 1.1,
+    enterpriseNature: '民企', enterpriseCategory: '国家级高新技术企业',
+    warning: '黄色预警', audit: '已审核通过', applyTime: '2026-04-17'
+  },
+  {
+    id: 4, applicant: '驻沪办 蔡威', name: '先思达生物肿瘤早筛与精准诊断项目',
+    source: '江苏-南京市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '国家级高新技术企业，全球糖质组学精准诊断领跑者，专注肿瘤早筛...',
+    capital: '内资', industryType: '工业', industry: '大健康和生物技术',
+    investor: '先思达（南京）生物科技有限公司', amount: 2.0,
+    enterpriseNature: '民企', enterpriseCategory: '国家级高新技术企业',
+    warning: '黄色预警', audit: '已审核通过', applyTime: '2026-04-17'
+  },
+  {
+    id: 5, applicant: '驻沪办 蔡威', name: '上海牛瓦时克生产基地项目',
+    source: '上海-上海市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '牛瓦时克（上海）科技为国家级高新技术企业、上海市专精特新企业...',
+    capital: '内资', industryType: '工业', industry: '新能源类',
+    investor: '牛瓦时克（上海）科技有限公司', amount: 1.3,
+    enterpriseNature: '民企', enterpriseCategory: '国家级高新技术企业',
+    warning: '黄色预警', audit: '已审核通过', applyTime: '2026-04-16'
+  },
+  {
+    id: 6, applicant: '驻京办 张荣生', name: '易点云扩大IT租赁业务项目',
+    source: '北京-北京市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '易点云成立于2014年，是中国最大的办公IT订阅服务供应商...',
+    capital: '内资', industryType: '服务业', industry: '其他类',
+    investor: '北京易点淘网络技术有限公司', amount: 0.3,
+    enterpriseNature: '民企', enterpriseCategory: '省级高新技术企业',
+    warning: '黄色预警', audit: '已审核通过', applyTime: '2026-04-09'
+  },
+  {
+    id: 7, applicant: '驻京办 张荣生', name: '中科硅纪具身机器人研究中心项目',
+    source: '北京-北京市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '中科硅纪是中科院自动化所近年来按照新模式批准成立的第一个成果转化平台...',
+    capital: '内资', industryType: '服务业', industry: '超级计算和人工智能',
+    investor: '中科硅纪（南京）机器人有限公司', amount: 0.8,
+    enterpriseNature: '民企', enterpriseCategory: '其它',
+    warning: '黄色预警', audit: '已审核通过', applyTime: '2026-04-01'
+  },
+  {
+    id: 8, applicant: '东湖高新区 王信', name: '光谷环保能源环保综合服务平台项目',
+    source: '湖北-武汉市', chushangType: '华科校友', chushangInfo: '武汉光谷环保科技股份有限公司...',
+    status: '在谈',
+    desc: '武汉光谷环保科技股份有限公司成立于2008年，是一家专注于环保能源综合服务的企业...',
+    capital: '内资', industryType: '服务业', industry: '新能源类',
+    investor: '武汉光谷环保科技股份有限公司', amount: 4.0,
+    enterpriseNature: '民企', enterpriseCategory: '省级高新技术企业',
+    warning: '正常', audit: '已审核通过', applyTime: '2026-03-28'
+  },
+  {
+    id: 9, applicant: '东湖高新区 王颖雪', name: '翔天科技总部项目',
+    source: '河北-保定市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '翔天科技是一家专注于智慧农业技术研发的企业，计划在光谷建设区域总部...',
+    capital: '内资', industryType: '农业', industry: '其他类',
+    investor: '翔天科技股份有限公司', amount: 3.3,
+    enterpriseNature: '民企', enterpriseCategory: '省级高新技术企业',
+    warning: '正常', audit: '已审核通过', applyTime: '2026-03-20'
+  },
+  {
+    id: 10, applicant: '驻京办 张荣生', name: '瑞景乾行基因类抗癌药生产项目',
+    source: '北京-北京市', chushangType: '', chushangInfo: '', status: '在谈',
+    desc: '因保密原因，药名暂未公布，瑞景乾行主要用于治疗胰腺癌、小细胞肺癌等...',
+    capital: '内资', industryType: '服务业', industry: '大健康和生物技术',
+    investor: '瑞景乾行（成都）生物科技有限公司', amount: 5.0,
+    enterpriseNature: '民企', enterpriseCategory: '国家级高新技术企业',
+    warning: '红色预警', audit: '已审核通过', applyTime: '2026-03-15'
+  }
+];
+
+// ===== 状态管理 =====
+let state = {
+  data: [...mockData],
+  filteredData: [...mockData],
+  currentPage: 1,
+  pageSize: 10,
+  selectedIds: new Set(),
+  density: 'normal'
+};
+
+// ===== 渲染表格 =====
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const start = (state.currentPage - 1) * state.pageSize;
+  const end = start + state.pageSize;
+  const pageData = state.filteredData.slice(start, end);
+
+  if (pageData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="18"><div class="empty-state">暂无数据</div></td></tr>';
+  } else {
+    tbody.innerHTML = pageData.map((row, idx) => {
+      const isChecked = state.selectedIds.has(row.id);
+      const warningTag = row.warning === '红色预警' ? 'tag-red' :
+                         row.warning === '黄色预警' ? 'tag-orange' : 'tag-green';
+      const auditTag = row.audit === '已审核通过' ? 'tag-green' :
+                       row.audit === '待审核' ? 'tag-orange' : 'tag-red';
+      const industryTypeTag = row.industryType === '工业' ? 'tag-blue' :
+                              row.industryType === '农业' ? 'tag-green' : 'tag-purple';
+      const capitalTag = row.capital === '内资' ? 'tag-cyan' : 'tag-default';
+
+      return `
+        <tr>
+          <td class="col-checkbox">
+            <span class="checkbox ${isChecked ? 'checked' : ''}" onclick="toggleRow(${row.id})">
+              ${isChecked ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+            </span>
+          </td>
+          <td class="col-index">${start + idx + 1}</td>
+          <td>${row.applicant}</td>
+          <td><span class="tag tag-blue">${row.status}</span></td>
+          <td style="font-weight:500;color:var(--text-primary);">${row.name}</td>
+          <td>${row.source}</td>
+          <td>${row.chushangType || '-'}</td>
+          <td><span class="tag ${capitalTag}">${row.capital}</span></td>
+          <td><span class="tag ${industryTypeTag}">${row.industryType}</span></td>
+          <td>${row.industry}</td>
+          <td><div class="desc-cell" title="${row.desc}">${row.desc}</div></td>
+          <td>${row.investor}</td>
+          <td class="col-amount">${row.amount.toFixed(1)}</td>
+          <td>${row.enterpriseNature}</td>
+          <td>${row.enterpriseCategory}</td>
+          <td><span class="tag ${warningTag}">${row.warning}</span></td>
+          <td><span class="tag ${auditTag}">${row.audit}</span></td>
+          <td class="col-actions">
+            <button class="action-link" onclick="viewDetail(${row.id})">详情</button>
+            <button class="action-link" onclick="reportProgress(${row.id})">汇报</button>
+            <button class="action-link" onclick="transferToSign(${row.id})">签约</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // 更新统计
+  const pageTotal = pageData.reduce((sum, r) => sum + r.amount, 0);
+  const filteredTotal = state.filteredData.reduce((sum, r) => sum + r.amount, 0);
+  document.getElementById('currentPageTotal').textContent = pageTotal.toFixed(1);
+  document.getElementById('filteredTotal').textContent = filteredTotal.toFixed(1);
+
+  renderPagination();
+  updateSelectAllState();
+}
+
+// ===== 分页 =====
+function renderPagination() {
+  const total = state.filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+  document.getElementById('totalInfo').textContent = `共 ${total} 条`;
+
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  prevBtn.disabled = state.currentPage <= 1;
+  nextBtn.disabled = state.currentPage >= totalPages;
+
+  const pageNumbers = document.getElementById('pageNumbers');
+  let html = '';
+  const maxVisible = 5;
+  let startPage = Math.max(1, state.currentPage - 2);
+  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  if (endPage - startPage < maxVisible - 1) {
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="page-btn ${i === state.currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+  }
+  pageNumbers.innerHTML = html;
+  document.getElementById('jumpInput').max = totalPages;
+}
+
+function goToPage(page) {
+  state.currentPage = page;
+  renderTable();
+}
+
+function prevPage() {
+  if (state.currentPage > 1) { state.currentPage--; renderTable(); }
+}
+
+function nextPage() {
+  const totalPages = Math.ceil(state.filteredData.length / state.pageSize);
+  if (state.currentPage < totalPages) { state.currentPage++; renderTable(); }
+}
+
+function changePageSize() {
+  state.pageSize = parseInt(document.getElementById('pageSize').value);
+  state.currentPage = 1;
+  renderTable();
+}
+
+function jumpPage() {
+  const val = parseInt(document.getElementById('jumpInput').value);
+  const totalPages = Math.ceil(state.filteredData.length / state.pageSize);
+  if (val >= 1 && val <= totalPages) {
+    state.currentPage = val;
+    renderTable();
+  }
+}
+
+// ===== 选择 =====
+function toggleRow(id) {
+  if (state.selectedIds.has(id)) {
+    state.selectedIds.delete(id);
+  } else {
+    state.selectedIds.add(id);
+  }
+  renderTable();
+}
+
+function toggleSelectAll() {
+  const start = (state.currentPage - 1) * state.pageSize;
+  const end = start + state.pageSize;
+  const pageData = state.filteredData.slice(start, end);
+  const allSelected = pageData.every(r => state.selectedIds.has(r.id));
+  if (allSelected) {
+    pageData.forEach(r => state.selectedIds.delete(r.id));
+  } else {
+    pageData.forEach(r => state.selectedIds.add(r.id));
+  }
+  renderTable();
+}
+
+function updateSelectAllState() {
+  const start = (state.currentPage - 1) * state.pageSize;
+  const end = start + state.pageSize;
+  const pageData = state.filteredData.slice(start, end);
+  const allSelected = pageData.length > 0 && pageData.every(r => state.selectedIds.has(r.id));
+  const selectAll = document.getElementById('selectAll');
+  selectAll.className = 'checkbox' + (allSelected ? ' checked' : '');
+  selectAll.innerHTML = allSelected ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+}
+
+// ===== 筛选 =====
+function doSearch() {
+  const name = document.getElementById('filterName').value.trim();
+  const industryType = document.getElementById('filterIndustryType').value;
+  const industry = document.getElementById('filterIndustry').value;
+  const status = document.getElementById('filterStatus').value;
+  const audit = document.getElementById('filterAudit').value;
+  const warning = document.getElementById('filterWarning').value;
+
+  state.filteredData = state.data.filter(row => {
+    if (name && !row.name.includes(name)) return false;
+    if (industryType && row.industryType !== industryType) return false;
+    if (industry && row.industry !== industry) return false;
+    if (status && row.status !== status) return false;
+    if (audit && row.audit !== audit) return false;
+    if (warning && row.warning !== warning) return false;
+    return true;
+  });
+  state.currentPage = 1;
+  renderTable();
+}
+
+function doReset() {
+  document.getElementById('filterName').value = '';
+  document.getElementById('filterIndustryType').value = '';
+  document.getElementById('filterIndustry').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterAudit').value = '';
+  document.getElementById('filterWarning').value = '';
+  document.getElementById('filterCategory').value = '';
+  document.getElementById('filterDateStart').value = '2026-01-01';
+  document.getElementById('filterDateEnd').value = '2026-08-26';
+  state.filteredData = [...state.data];
+  state.currentPage = 1;
+  renderTable();
+}
+
+function doExport() {
+  alert('导出功能：将当前筛选结果导出为 Excel 文件（Demo 演示）');
+}
+
+function refreshTable() {
+  renderTable();
+}
+
+function toggleDensity() {
+  state.density = state.density === 'normal' ? 'compact' : 'normal';
+  const padding = state.density === 'compact' ? '8px 16px' : '12px 16px';
+  document.querySelectorAll('.data-table tbody td').forEach(td => { td.style.padding = padding; });
+  document.querySelectorAll('.data-table thead th').forEach(th => { th.style.padding = padding; });
+}
+
+// ===== 操作 =====
+function viewDetail(id) {
+  const row = state.data.find(r => r.id === id);
+  alert(`查看项目详情：${row.name}\n（Demo 演示，后续将跳转详情页）`);
+}
+
+function reportProgress(id) {
+  const row = state.data.find(r => r.id === id);
+  alert(`汇报项目进展：${row.name}\n（Demo 演示，后续将打开汇报表单）`);
+}
+
+function transferToSign(id) {
+  const row = state.data.find(r => r.id === id);
+  alert(`转签约：${row.name}\n（Demo 演示，后续将跳转签约创建页并带入项目信息）`);
+}
+
+// ===== 菜单交互 =====
+function toggleMenu(el) {
+  const item = el.parentElement;
+  item.classList.toggle('open');
+}
+
+function selectMenu(el, name) {
+  document.querySelectorAll('.submenu-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('breadcrumbCurrent').textContent = name;
+  if (name !== '跟踪洽谈（在谈）') {
+    alert(`切换到「${name}」页面（Demo 演示，该页面待开发）`);
+  }
+}
+
+// ===== 初始化 =====
+renderTable();
+</script>
+</body>
+</html>
