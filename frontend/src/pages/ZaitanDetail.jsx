@@ -2,19 +2,40 @@ import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Tabs, Descriptions, Button, Space, Modal, Form, Input, Select, Row, Col,
-  Timeline, message, Popconfirm, Typography, Empty, DatePicker, Tag
+  Timeline, message, DatePicker, Tag, Empty, Popconfirm, Dropdown
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, PlusOutlined, DeleteOutlined,
-  ExportOutlined, PauseCircleOutlined, SendOutlined, SettingOutlined
+  ExportOutlined, PauseCircleOutlined, SendOutlined, SettingOutlined,
+  CheckCircleOutlined, MessageOutlined, PaperClipOutlined, ExclamationCircleOutlined,
+  RobotOutlined, MoreOutlined
 } from '@ant-design/icons'
 import mockData from '../mock/data.json'
 import DecisionFlow, { getDecisionNodes } from '../components/DecisionFlow'
 import UpdateDecisionModal from '../components/UpdateDecisionModal'
 import ZaitanEditModal from '../components/ZaitanEditModal'
+import AssignModal from '../components/AssignModal'
+import FeedbackModal from '../components/FeedbackModal'
+import ZhuanQianyueModal from '../components/ZhuanQianyueModal'
+import ProgressTimeline from '../components/ProgressTimeline'
+import ProgressSummaryModal from '../components/ProgressSummaryModal'
+import { useViewRole, msgStore } from '../store/viewStore'
+import { findUnitByKey } from '../constants/assignConfig'
+import {
+  COLORS,
+  sectionTitleStyle,
+  descriptionsProps as baseDescriptionsProps,
+  pageCardStyle,
+  detailHeaderStyle,
+  detailHeaderLeftStyle,
+  progressModalProps,
+  progressContentFieldProps,
+  progressTextAreaProps,
+  emptyTag,
+  PROGRESS_TYPE,
+} from '../constants/uiStyles'
 
 const { TextArea } = Input
-const { Text } = Typography
 
 const CURRENT_USER = '投促局管理员'
 const ENTERPRISE_NATURE = ['国企（央企）', '国企（地方）', '民企', '外企']
@@ -28,12 +49,6 @@ const JIANSHE_TYPE = ['新建', '扩建', '改建', '技术改造', '其他']
 const CHUSHANG_TYPE = ['湖北籍企业家', '武汉校友', '非楚商']
 const INDUSTRY_CATEGORY = ['农业', '工业', '服务业']
 const DOMESTIC_FOREIGN = ['内资', '外资']
-
-function formatTime(date) {
-  const d = new Date(date)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
 
 function formatDate(d) {
   if (!d) return '-'
@@ -60,6 +75,7 @@ export default function ZaitanDetail() {
   const [searchParams] = useSearchParams()
   const [basicForm] = Form.useForm()
   const [progressForm] = Form.useForm()
+  const { role, isSponsor, myDeptKey } = useViewRole()
 
   // 构造mock项目数据
   const [project, setProject] = useState(() => {
@@ -130,23 +146,73 @@ export default function ZaitanDetail() {
   const displayDecisionNodes = buildDisplayNodes(baseDecisionNodes, decisionPassed)
   const canUpdateDecision = !!baseDecisionNodes
 
-  // 进展列表，包含初始的决策节点记录
-  const [progressList, setProgressList] = useState([
-    {
+  // 进展列表，包含系统事件（创建/导入/决策节点初始通过）、谋划阶段历史进展、在谈阶段进展
+  const [progressList, setProgressList] = useState(() => {
+    const initList = []
+    // 系统事件：由谋划阶段转入在谈（阶段推进动作，由项目经办人操作）
+    initList.push({
+      id: 'sys-import-zaitan',
+      type: PROGRESS_TYPE.SYSTEM,
+      content: '项目由谋划阶段转入在谈',
+      reporter: project.reporter || '投促局 易成豪',
+      updateTime: '2025-12-22 10:00',
+    })
+    // 系统事件：项目新增（最早事件）
+    initList.push({
+      id: 'sys-create',
+      type: PROGRESS_TYPE.SYSTEM,
+      content: '新增项目',
+      reporter: project.reporter || '投促局 易成豪',
+      updateTime: '2025-12-20 09:00',
+    })
+    // 谋划阶段历史进展（作为跨阶段记录展示）
+    initList.push({
+      id: 'mouhua-prog-1',
+      type: PROGRESS_TYPE.NORMAL,
+      stage: '谋划阶段',
+      content: '完成项目初步摸排，企业符合我区重点产业方向，列入重点跟踪项目。',
+      reporter: '驻沪办 蔡威',
+      updateTime: '2025-12-21 15:00',
+    })
+    // 初始决策节点已通过记录
+    Object.entries({
+      touweihui: '投委会',
+      guoqitoujuehui: '国企投决会',
+      changwuhui: '常务会',
+    }).forEach(([key, label]) => {
+      const passedMap = project.projectCategory === '政策类' ? { touweihui: '2026-07-10' }
+        : project.projectCategory === '投资类' && project.investAmount > 0.5 ? { guoqitoujuehui: '2026-07-05' }
+        : project.projectCategory === '供地类' ? { touweihui: '2026-07-10', changwuhui: '2026-07-20' }
+        : {}
+      if (passedMap[key]) {
+        initList.push({
+          id: `init-decision-${key}`,
+          type: PROGRESS_TYPE.DECISION,
+          content: `决策节点更新：「${label}」已于 ${passedMap[key]} 通过`,
+          reporter: CURRENT_USER,
+          updateTime: `${passedMap[key]} 09:00`,
+        })
+      }
+    })
+    // 在谈阶段手动进展
+    initList.push({
       id: 'prog-1',
+      type: PROGRESS_TYPE.NORMAL,
+      stage: '在谈阶段',
       content: '已完成项目初步对接，企业表示有较强投资意向，已安排下周实地考察。',
       reporter: '驻沪办 蔡威',
       updateTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      type: 'normal',
-    },
-    {
+    })
+    initList.push({
       id: 'prog-2',
+      type: PROGRESS_TYPE.NORMAL,
+      stage: '在谈阶段',
       content: '企业完成考察，双方就选址、政策支持等初步达成共识。',
       reporter: '东湖高新区 易成豪',
       updateTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      type: 'normal',
-    },
-  ])
+    })
+    return initList
+  })
 
   const [activeTab, setActiveTab] = useState('basic')
   const [editModalVisible, setEditModalVisible] = useState(false)
@@ -154,36 +220,87 @@ export default function ZaitanDetail() {
   const [progressModalVisible, setProgressModalVisible] = useState(false)
   const [decisionModalVisible, setDecisionModalVisible] = useState(false)
   const [assignModalVisible, setAssignModalVisible] = useState(false)
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false)
+  const [aiVisible, setAiVisible] = useState(false)
+  const [zhuanQianyueVisible, setZhuanQianyueVisible] = useState(false)
+  const [tuikuVisible, setTuikuVisible] = useState(false)
+  const [tuikuReason, setTuikuReason] = useState('')
+  const [feedbackTarget, setFeedbackTarget] = useState(null) // 当前要反馈的分派记录id
   const [editingProgress, setEditingProgress] = useState(null)
   const [editLoading, setEditLoading] = useState(false)
   const [progressLoading, setProgressLoading] = useState(false)
 
-  // 分派记录mock数据
-  const [assignList] = useState([
+  // 分派记录（新结构：拆分到单位、支持多条反馈、附件）
+  const [assignList, setAssignList] = useState(() => [
     {
-      id: 'a1', time: '2026-05-08 10:30', from: '市投促局', to: '东湖高新区', status: '已完成',
-      feedback: '已接收项目，安排服务业园进行对接。',
-      feedbackImages: ['https://console.enterprise.trae.cn/api/ide/v1/text_to_image?prompt=政府办公大楼商务场景照片,写实风格&image_size=square'],
-      feedbackTime: '2026-05-08 15:20', feedbackUser: '东湖高新区-周玲玲',
+      id: 'a-kcj', toDeptKey: 'kcj', fromDeptName: '市投促局', toDeptName: '科创局',
+      assignTime: '2026-08-28 10:30',
+      content: '请协助对接高企认定政策，评估该企业入选光谷英才计划的可能性，并提供对接建议。',
+      attachments: [],
+      status: 'processing', // processing / done
+      acceptTime: '2026-08-28 14:10',
+      finishTime: null,
+      feedbacks: [
+        {
+          id: 'fb-1', user: '科创局-王科长', time: '2026-08-28 15:20',
+          content: '已与企业初步对接，该企业技术创新能力较强，符合高企认定基本条件，已安排专人下周对接光谷英才申报材料准备。',
+          attachments: [],
+        },
+      ],
     },
     {
-      id: 'a2', time: '2026-05-09 14:20', from: '东湖高新区', to: '服务业园办', status: '处理中',
-      feedback: '已与企业方取得初步联系，预计下周完成实地考察。',
-      feedbackImages: [],
-      feedbackTime: '2026-05-10 09:15', feedbackUser: '服务业园-张主任',
+      id: 'a-qfj', toDeptKey: 'qfj', fromDeptName: '市投促局', toDeptName: '企服局',
+      assignTime: '2026-08-28 10:30',
+      content: '企业计划投资建设AI药物研发平台，请评估该项目纳入亿元以上技改项目或光电子信息重大专项的可能性。',
+      attachments: [],
+      status: 'processing',
+      acceptTime: null, finishTime: null, feedbacks: [],
+    },
+    {
+      id: 'a-wljs', toDeptKey: 'wljs', fromDeptName: '市投促局', toDeptName: '未来科技城',
+      assignTime: '2026-08-25 09:00',
+      content: '企业有意向选址未来科技城，请对接合适的楼宇载体，并提供租金优惠方案。',
+      attachments: [],
+      status: 'done',
+      acceptTime: '2026-08-25 10:00',
+      finishTime: '2026-08-27 17:30',
+      feedbacks: [
+        {
+          id: 'fb-2', user: '未来科技城-陈主任', time: '2026-08-25 16:30',
+          content: '已初步对接2处载体，A6栋3000㎡、B2栋4500㎡，均符合生物医药研发用房需求，租金可按一类企业标准给予30%优惠。',
+          attachments: [],
+        },
+        {
+          id: 'fb-3', user: '未来科技城-陈主任', time: '2026-08-27 17:30',
+          content: '企业已实地考察A6栋，双方初步达成入驻意向，后续对接已交招商部继续跟进，本任务完成。',
+          attachments: [],
+        },
+      ],
     },
   ])
 
+  // 接收方视角下可见的分派记录（仅分派给自己的）
+  const visibleAssignList = useMemo(() => {
+    if (isSponsor) return assignList
+    return assignList.filter(a => a.toDeptKey === myDeptKey)
+  }, [assignList, isSponsor, myDeptKey])
+
+  // 接收方视角下，该项目是否分派给自己（决定详情页是否有权限查看）
+  const hasAccess = isSponsor || assignList.some(a => a.toDeptKey === myDeptKey)
+
   // URL参数触发对应操作
   useEffect(() => {
+    if (!hasAccess) return
     const action = searchParams.get('action')
     if (action === 'report') {
       setActiveTab('progress')
       setTimeout(() => handleAddProgress(), 300)
     } else if (action === 'decision') {
       setTimeout(() => setDecisionModalVisible(true), 300)
+    } else if (action === 'assign') {
+      setActiveTab('assign')
     }
-  }, [searchParams])
+  }, [searchParams, hasAccess])
 
   const handleBack = () => navigate('/project/zaitan')
 
@@ -236,7 +353,14 @@ export default function ZaitanDetail() {
         message.success('进展已更新')
       } else {
         setProgressList(prev => [
-          { id: `prog-${Date.now()}`, content: values.content, reporter: CURRENT_USER, updateTime: now, type: 'normal' },
+          {
+            id: `prog-${Date.now()}`,
+            type: PROGRESS_TYPE.NORMAL,
+            stage: '在谈阶段',
+            content: values.content,
+            reporter: CURRENT_USER,
+            updateTime: now,
+          },
           ...prev,
         ])
         message.success('进展已添加')
@@ -268,7 +392,7 @@ export default function ZaitanDetail() {
           : `决策节点更新：撤销「${c.label}」的通过状态（原通过日期 ${c.date}）`,
         reporter: CURRENT_USER,
         updateTime: now,
-        type: 'decision',
+        type: PROGRESS_TYPE.DECISION,
       }))
       setProgressList(prev => [...records, ...prev])
     }
@@ -277,72 +401,216 @@ export default function ZaitanDetail() {
   const handleToQianyue = () => {
     Modal.confirm({
       title: '转签约',
-      content: `确定将项目「${project.projectName}」推进至签约阶段吗？需要补充签约阶段必填字段。`,
+      content: `确定将项目「${project.projectName}」推进至签约阶段吗？需要补充签约阶段必填字段信息。`,
       okText: '去补充信息', cancelText: '取消',
-      onOk: () => message.success('已进入签约信息补全流程（demo示意）'),
+      onOk: () => setZhuanQianyueVisible(true),
     })
   }
 
-  const handleTuiku = () => {
-    Modal.confirm({
-      title: '确认退库',
-      content: `确定将项目「${project.projectName}」标记为退库吗？退库后不可恢复。`,
-      okText: '确认退库', cancelText: '取消',
-      okButtonProps: { danger: true },
-      onOk: () => { message.success('已标记为退库'); navigate('/project/zaitan') },
-    })
+  const handleTuikuConfirm = () => {
+    setProgressList(prev => [
+      {
+        id: `sys-tuiku-${Date.now()}`,
+        type: PROGRESS_TYPE.SYSTEM,
+        content: '项目已被标记为退库' + (tuikuReason ? `：${tuikuReason}` : ''),
+        reporter: CURRENT_USER,
+        updateTime: new Date().toISOString(),
+      },
+      ...prev,
+    ])
+    message.success('已标记为退库')
+    setTuikuVisible(false)
+    setTuikuReason('')
+    setTimeout(() => navigate('/project/zaitan'), 800)
   }
 
   const handleAssign = () => {
-    message.info('分派功能（demo示意，稍后补充需求）')
+    setAssignModalVisible(true)
   }
 
-  const sortedProgressList = useMemo(() => {
-    return [...progressList].sort((a, b) => new Date(b.updateTime) - new Date(a.updateTime))
-  }, [progressList])
+  // 提交分派
+  const handleAssignOk = ({ targets, content, attachments }) => {
+    const now = new Date()
+    const pad = n => String(n).padStart(2, '0')
+    const timeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+    const newRecords = targets.map((t, idx) => ({
+      id: `a-${Date.now()}-${idx}`,
+      toDeptKey: t.unitKey,
+      fromDeptName: '市投促局',
+      toDeptName: t.unitName,
+      assignTime: timeStr,
+      content,
+      attachments,
+      status: 'processing',
+      acceptTime: null,
+      finishTime: null,
+      feedbacks: [],
+    }))
+    setAssignList(prev => [...newRecords, ...prev])
+    // 给每个接收单位发一条站内信
+    targets.forEach(t => {
+      msgStore.addMessage({
+        toDeptKey: t.unitKey,
+        title: '【协作任务分派】',
+        content: `您有一条来自"市投促局"的"${project.projectName}"协作配合任务，请及时查看并跟进处理。`,
+        projectId: project.key,
+        projectName: project.projectName,
+        type: 'assign',
+      })
+    })
+    message.success(`已成功分派给 ${targets.length} 个单位`)
+    setAssignModalVisible(false)
+    setActiveTab('assign')
+  }
+
+  // 打开提交反馈弹窗
+  const handleOpenFeedback = (recordId) => {
+    setFeedbackTarget(recordId)
+    setFeedbackModalVisible(true)
+  }
+
+  // 提交反馈
+  const handleFeedbackOk = ({ content, attachments }) => {
+    const now = new Date()
+    const pad = n => String(n).padStart(2, '0')
+    const timeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+    const myUnit = findUnitByKey(myDeptKey)
+    const feedbackUser = myUnit ? `${myUnit.shortName}-${role.userName}` : role.userName
+    setAssignList(prev => prev.map(a => {
+      if (a.id !== feedbackTarget) return a
+      return {
+        ...a,
+        acceptTime: a.acceptTime || timeStr,
+        feedbacks: [
+          ...a.feedbacks,
+          { id: `fb-${Date.now()}`, user: feedbackUser, time: timeStr, content, attachments },
+        ],
+      }
+    }))
+    // 给发起人发反馈提醒
+    msgStore.addMessage({
+      toDeptKey: 'sponsor',
+      title: '【协作反馈提醒】',
+      content: `"${role.deptName}"已提交"${project.projectName}"的协作处理结果，请点击查看详情。`,
+      projectId: project.key,
+      projectName: project.projectName,
+      type: 'feedback',
+    })
+    message.success('反馈已提交')
+    setFeedbackModalVisible(false)
+    setFeedbackTarget(null)
+  }
+
+  // 标记完成
+  const handleMarkDone = (recordId) => {
+    Modal.confirm({
+      title: '标记为已完成',
+      content: '确认将该协作任务标记为已完成吗？标记后不可撤销。',
+      okText: '确认完成', cancelText: '取消',
+      onOk: () => {
+        const now = new Date()
+        const pad = n => String(n).padStart(2, '0')
+        const timeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+        setAssignList(prev => prev.map(a => a.id === recordId ? { ...a, status: 'done', finishTime: timeStr } : a))
+        msgStore.addMessage({
+          toDeptKey: 'sponsor',
+          title: '【协作完成提醒】',
+          content: `"${role.deptName}"已完成"${project.projectName}"的协作任务，请点击查看详情。`,
+          projectId: project.key,
+          projectName: project.projectName,
+          type: 'done',
+        })
+        message.success('已标记为完成')
+      },
+    })
+  }
+
+
 
   const formItemLayout = { labelCol: { span: 8 }, wrapperCol: { span: 16 } }
   const colProps = { span: 12 }
 
   return (
     <div className="page-container">
-      <div className="table-card" style={{ padding: '16px 24px 24px' }}>
+      <div className="table-card" style={pageCardStyle}>
         {/* 顶部标题 + 操作按钮 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 16, borderBottom: '1px solid #f0f0f0', marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={detailHeaderStyle}>
+          <div style={detailHeaderLeftStyle}>
             <Button type="text" icon={<ArrowLeftOutlined />} onClick={handleBack} style={{ marginLeft: -8 }}>
               返回
             </Button>
             <span style={{ fontSize: 18, fontWeight: 600 }}>{project.projectName}</span>
-            <Tag color="blue" style={{ background: '#e6f4ff', color: '#1677ff', border: '1px solid #91caff', margin: 0 }}>{project.projectStatus}</Tag>
+            <Tag color="blue" style={{ background: COLORS.primaryLight, color: COLORS.primary, border: `1px solid ${COLORS.primaryBorder}`, margin: 0 }}>{project.projectStatus}</Tag>
           </div>
           <Space size={8}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddProgress}>
-              进展汇报
-            </Button>
-            <Button icon={<EditOutlined />} onClick={handleEditBasic}>
-              编辑
-            </Button>
-            {canUpdateDecision && (
-              <Button icon={<SettingOutlined />} onClick={() => setDecisionModalVisible(true)}>
-                更新决策节点
-              </Button>
+            {isSponsor && (
+              <>
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleAddProgress}>
+                  进展汇报
+                </Button>
+                <Button className="ai-grad-btn" icon={<RobotOutlined />} onClick={() => setAiVisible(true)}>
+                  AI 摘要
+                </Button>
+                {canUpdateDecision && (
+                  <Button icon={<SettingOutlined />} onClick={() => setDecisionModalVisible(true)}>
+                    更新决策节点
+                  </Button>
+                )}
+                <Button icon={<SendOutlined />} onClick={handleAssign}>
+                  分派
+                </Button>
+                <Button icon={<ExportOutlined />} onClick={handleToQianyue}>
+                  转签约
+                </Button>
+                <Dropdown
+                  trigger={['click']}
+                  menu={{
+                    items: [
+                      { key: 'edit', icon: <EditOutlined />, label: '编辑' },
+                      { type: 'divider' },
+                      { key: 'tuiku', icon: <PauseCircleOutlined style={{ color: '#ff4d4f' }} />, label: '标记退库' },
+                    ],
+                    onClick: ({ key }) => {
+                      if (key === 'edit') handleEditBasic()
+                      else if (key === 'tuiku') { setTuikuReason(''); setTuikuVisible(true) }
+                    },
+                  }}
+                >
+                  <Button icon={<MoreOutlined />} aria-label="更多" />
+                </Dropdown>
+              </>
             )}
-            <Button icon={<SendOutlined />} onClick={handleAssign}>
-              分派
-            </Button>
-            <Button icon={<ExportOutlined />} onClick={handleToQianyue}>
-              转签约
-            </Button>
-            <Button danger icon={<PauseCircleOutlined />} onClick={handleTuiku}>
-              标记退库
-            </Button>
+            {!isSponsor && (
+              <Tag color="orange" style={{ fontSize: 12, padding: '4px 10px' }}>
+                当前为接收方视角：{role.deptName}-{role.userName}，仅可查看项目信息并反馈分派任务
+              </Tag>
+            )}
           </Space>
         </div>
 
         {/* 决策节点流程图 */}
         {displayDecisionNodes.length > 0 && <DecisionFlow nodes={displayDecisionNodes} />}
 
+        {/* 接收方无权限提示 */}
+        {!hasAccess && (
+          <div style={{
+            padding: '60px 20px', textAlign: 'center', background: '#fff', borderRadius: 6,
+            border: '1px solid #f0f0f0',
+          }}>
+            <Empty
+              description={
+                <span style={{ color: '#8c8c8c' }}>
+                  该项目未分派给您所在单位（{role.deptName}），您无权查看详情。
+                  <br />
+                  <span style={{ fontSize: 12 }}>如需查看，请联系项目发起人分派协作任务。</span>
+                </span>
+              }
+            />
+            <Button type="primary" style={{ marginTop: 16 }} onClick={handleBack}>返回列表</Button>
+          </div>
+        )}
+
+        {hasAccess && (
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -411,85 +679,13 @@ export default function ZaitanDetail() {
               key: 'progress',
               label: '进展信息',
               children: (
-                <div>
-                  <div style={{ marginBottom: 20 }}>
-                    <Text type="secondary" style={{ fontSize: 13, color: '#8c8c8c' }}>共 {progressList.length} 条进展记录（按更新时间倒序，决策节点更新自动同步）</Text>
-                  </div>
-                  {sortedProgressList.length === 0 ? (
-                    <Empty description="暂无进展记录，点击顶部「进展汇报」添加" style={{ padding: '60px 0' }} />
-                  ) : (
-                    <Timeline
-                      items={sortedProgressList.map(item => ({
-                        color: item.type === 'decision' ? 'green' : 'blue',
-                        children: (
-                          <div style={{ paddingBottom: 24 }}>
-                            <div style={{
-                              background: '#fff',
-                              borderLeft: `3px solid ${item.type === 'decision' ? '#52c41a' : '#1677ff'}`,
-                              padding: '12px 16px 10px',
-                              borderRadius: '0 4px 4px 0',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                            }}>
-                              {item.type === 'decision' && (
-                                <div style={{ fontSize: 12, color: '#52c41a', marginBottom: 6, fontWeight: 500 }}>
-                                  ● 决策节点更新
-                                </div>
-                              )}
-                              <div style={{
-                                fontSize: 15,
-                                color: '#262626',
-                                lineHeight: 1.8,
-                                whiteSpace: 'pre-wrap',
-                                marginBottom: item.reporter === CURRENT_USER || item.type === 'decision' ? 10 : 8,
-                              }}>
-                                {item.content}
-                              </div>
-                              <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontSize: 12,
-                                color: '#bfbfbf',
-                              }}>
-                                <span>—— {item.reporter} · {formatTime(item.updateTime)}</span>
-                                {item.type !== 'decision' && item.reporter === CURRENT_USER && (
-                                  <Space size={0}>
-                                    <Button
-                                      type="text"
-                                      size="small"
-                                      style={{ fontSize: 12, color: '#bfbfbf', padding: '0 4px', height: 'auto' }}
-                                      onClick={() => handleEditProgress(item)}
-                                      onMouseEnter={e => e.currentTarget.style.color = '#1677ff'}
-                                      onMouseLeave={e => e.currentTarget.style.color = '#bfbfbf'}
-                                    >
-                                      编辑
-                                    </Button>
-                                    <Popconfirm
-                                      title="确定删除这条进展记录吗？"
-                                      okText="删除" cancelText="取消"
-                                      okButtonProps={{ danger: true, size: 'small' }}
-                                      onConfirm={() => handleDeleteProgress(item)}
-                                    >
-                                      <Button
-                                        type="text"
-                                        size="small"
-                                        style={{ fontSize: 12, color: '#bfbfbf', padding: '0 4px', height: 'auto' }}
-                                        onMouseEnter={e => e.currentTarget.style.color = '#ff4d4f'}
-                                        onMouseLeave={e => e.currentTarget.style.color = '#bfbfbf'}
-                                      >
-                                        删除
-                                      </Button>
-                                    </Popconfirm>
-                                  </Space>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ),
-                      }))}
-                    />
-                  )}
-                </div>
+                <ProgressTimeline
+                  list={progressList}
+                  currentUser={CURRENT_USER}
+                  onEdit={handleEditProgress}
+                  onDelete={handleDeleteProgress}
+                  summaryExtra={<span>（决策节点更新自动同步）</span>}
+                />
               ),
             },
             {
@@ -497,12 +693,26 @@ export default function ZaitanDetail() {
               label: '分派情况',
               children: (
                 <div>
-                  <div style={{ marginBottom: 20 }}>
-                    <Text type="secondary" style={{ fontSize: 13, color: '#8c8c8c' }}>共 {assignList.length} 条分派记录</Text>
+                  <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, color: '#8c8c8c' }}>
+                      共 {visibleAssignList.length} 条分派记录
+                      （处理中 <span style={{ color: '#1677ff' }}>{visibleAssignList.filter(a => a.status === 'processing').length}</span> / 已完成 <span style={{ color: '#52c41a' }}>{visibleAssignList.filter(a => a.status === 'done').length}</span>）
+                    </span>
+                    {isSponsor && (
+                      <Button type="primary" icon={<PlusOutlined />} size="small" onClick={() => setAssignModalVisible(true)}>
+                        新增分派
+                      </Button>
+                    )}
                   </div>
+                  {visibleAssignList.length === 0 ? (
+                    <Empty description="暂无分派记录" style={{ padding: '40px 0' }} />
+                  ) : (
                   <Timeline
-                    items={assignList.map(item => {
-                      const statusColor = item.status === '已完成' ? 'green' : item.status === '处理中' ? 'blue' : 'orange'
+                    items={visibleAssignList.map(item => {
+                      const isDone = item.status === 'done'
+                      const canOperate = !isSponsor && item.toDeptKey === myDeptKey && !isDone
+                      const statusColor = isDone ? 'green' : 'blue'
+                      const statusLabel = isDone ? '已完成' : '处理中'
                       return {
                         color: statusColor,
                         children: (
@@ -514,45 +724,107 @@ export default function ZaitanDetail() {
                               borderRadius: '0 4px 4px 0',
                               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                             }}>
-                              <div style={{ fontSize: 14, color: '#262626', marginBottom: 6 }}>
-                                <span style={{ color: '#595959' }}>{item.from}</span>
-                                <span style={{ color: '#1677ff', margin: '0 8px' }}>分派至</span>
-                                <span style={{ fontWeight: 500 }}>{item.to}</span>
-                                <Tag color={statusColor} style={{ marginLeft: 12 }}>{item.status}</Tag>
+                              <div style={{ fontSize: 14, color: '#262626', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <span style={{ color: '#595959' }}>{item.fromDeptName}</span>
+                                  <span style={{ color: '#1677ff', margin: '0 8px' }}>分派至</span>
+                                  <span style={{ fontWeight: 500 }}>{item.toDeptName}</span>
+                                  <Tag color={statusColor} style={{ marginLeft: 12 }}>{statusLabel}</Tag>
+                                </div>
+                                {canOperate && (
+                                  <Space size={4}>
+                                    <Button type="link" size="small" icon={<MessageOutlined />} onClick={() => handleOpenFeedback(item.id)}>
+                                      提交反馈
+                                    </Button>
+                                    <Button type="link" size="small" icon={<CheckCircleOutlined />} onClick={() => handleMarkDone(item.id)} style={{ color: '#52c41a' }}>
+                                      标记完成
+                                    </Button>
+                                  </Space>
+                                )}
                               </div>
-                              <div style={{ fontSize: 12, color: '#bfbfbf', marginBottom: item.feedback ? 10 : 0 }}>
-                                分派时间：{item.time}
+                              <div style={{ fontSize: 12, color: '#bfbfbf', marginBottom: 8 }}>
+                                分派时间：{item.assignTime}
+                                {item.finishTime && <span style={{ marginLeft: 16 }}>完成时间：{item.finishTime}</span>}
                               </div>
 
-                              {item.feedback && (
+                              {/* 协同事项说明 */}
+                              {item.content && (
                                 <div style={{
-                                  background: '#f9f9f9',
-                                  borderRadius: 4,
-                                  padding: '10px 12px',
-                                  marginTop: 4,
+                                  background: '#e6f4ff',
+                                  borderRadius: 4, padding: '8px 12px',
+                                  marginBottom: item.attachments && item.attachments.length > 0 ? 6 : 0,
+                                  fontSize: 13, color: '#0958d9', lineHeight: 1.6,
                                 }}>
-                                  <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>
-                                    被委派对象反馈 · {item.feedbackUser} · {item.feedbackTime}
-                                  </div>
-                                  <div style={{ fontSize: 14, color: '#262626', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-                                    {item.feedback}
-                                  </div>
-                                  {item.feedbackImages && item.feedbackImages.length > 0 && (
-                                    <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                                      {item.feedbackImages.map((src, i) => (
+                                  <span style={{ fontWeight: 500, marginRight: 6 }}>📋 协同事项：</span>{item.content}
+                                </div>
+                              )}
+
+                              {/* 分派附件 */}
+                              {item.attachments && item.attachments.length > 0 && (
+                                <div style={{ marginTop: 6, marginBottom: 4 }}>
+                                  <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}><PaperClipOutlined /> 附件：</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                    {item.attachments.map((att, idx) => (
+                                      att.isImage ? (
                                         <img
-                                          key={i}
-                                          src={src}
-                                          alt={`反馈图片${i + 1}`}
-                                          style={{
-                                            width: 120, height: 120, objectFit: 'cover',
-                                            borderRadius: 4, border: '1px solid #f0f0f0', cursor: 'pointer',
-                                          }}
-                                          onClick={() => window.open(src, '_blank')}
+                                          key={idx} src={att.url} alt={att.name}
+                                          style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4, border: '1px solid #f0f0f0', cursor: 'pointer' }}
+                                          onClick={() => window.open(att.url, '_blank')}
                                         />
-                                      ))}
+                                      ) : (
+                                        <a key={idx} href={att.url} target="_blank" rel="noreferrer" style={{
+                                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                                          padding: '4px 10px', background: '#f5f5f5', borderRadius: 4,
+                                          fontSize: 12, color: '#595959',
+                                        }}>
+                                          📄 {att.name}
+                                        </a>
+                                      )
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 反馈时间线 */}
+                              {item.feedbacks && item.feedbacks.length > 0 && (
+                                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #f0f0f0' }}>
+                                  <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 8 }}>
+                                    📝 反馈记录（{item.feedbacks.length}）
+                                  </div>
+                                  {[...item.feedbacks].sort((a, b) => b.time.localeCompare(a.time)).map((fb, fIdx, arr) => (
+                                    <div key={fb.id} style={{
+                                      background: '#fafafa', borderRadius: 4, padding: '8px 12px',
+                                      marginBottom: fIdx < arr.length - 1 ? 8 : 0,
+                                    }}>
+                                      <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>
+                                        {fb.user} · {fb.time}
+                                      </div>
+                                      <div style={{ fontSize: 13, color: '#262626', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                                        {fb.content}
+                                      </div>
+                                      {fb.attachments && fb.attachments.length > 0 && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                                          {fb.attachments.map((att, aidx) => (
+                                            att.isImage ? (
+                                              <img
+                                                key={aidx} src={att.url} alt={att.name}
+                                                style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4, border: '1px solid #f0f0f0', cursor: 'pointer' }}
+                                                onClick={() => window.open(att.url, '_blank')}
+                                              />
+                                            ) : (
+                                              <a key={aidx} href={att.url} target="_blank" rel="noreferrer" style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                                padding: '4px 10px', background: '#fff', borderRadius: 4,
+                                                fontSize: 12, color: '#1677ff', border: '1px solid #d9d9d9',
+                                              }}>
+                                                📄 {att.name}
+                                              </a>
+                                            )
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
+                                  ))}
                                 </div>
                               )}
                             </div>
@@ -561,11 +833,13 @@ export default function ZaitanDetail() {
                       }
                     })}
                   />
+                  )}
                 </div>
               ),
             },
           ]}
         />
+        )}
       </div>
 
       {/* 编辑基础信息弹窗 */}
@@ -663,22 +937,17 @@ export default function ZaitanDetail() {
 
       {/* 进展汇报/编辑弹窗 */}
       <Modal
-        title={editingProgress ? '编辑进展' : '新增进展'}
-        open={progressModalVisible}
-        onOk={handleProgressOk}
-        onCancel={() => { setProgressModalVisible(false); progressForm.resetFields() }}
-        confirmLoading={progressLoading}
-        okText="保存" cancelText="取消"
-        width={600}
-        destroyOnClose
+        {...progressModalProps({
+          open: progressModalVisible,
+          projectName: editingProgress ? `${project.projectName}（编辑）` : project.projectName,
+          confirmLoading: progressLoading,
+          onOk: handleProgressOk,
+          onCancel: () => { setProgressModalVisible(false); progressForm.resetFields() },
+        })}
       >
-        <Form form={progressForm} layout="vertical" requiredMark={true} style={{ marginTop: 16 }}>
-          <Form.Item
-            label="进展内容"
-            name="content"
-            rules={[{ required: true, message: '请输入进展内容' }, { max: 500, message: '进展内容不超过500个字符' }]}
-          >
-            <TextArea rows={6} placeholder="请输入进展内容，最多500字" maxLength={500} showCount />
+        <Form form={progressForm} layout="vertical" requiredMark style={{ marginTop: 16 }}>
+          <Form.Item {...progressContentFieldProps}>
+            <Input.TextArea {...progressTextAreaProps} />
           </Form.Item>
         </Form>
       </Modal>
@@ -701,6 +970,103 @@ export default function ZaitanDetail() {
         onCancel={() => setZaitanEditVisible(false)}
         onOk={() => { setZaitanEditVisible(false); message.success('保存成功（demo示意）') }}
         projectData={project}
+      />
+
+      {/* 新增分派弹窗 */}
+      <AssignModal
+        key={`assign-${assignModalVisible}`}
+        open={assignModalVisible}
+        projectName={project.projectName}
+        onCancel={() => setAssignModalVisible(false)}
+        onOk={handleAssignOk}
+      />
+
+      {/* 提交反馈弹窗 */}
+      <FeedbackModal
+        key={`feedback-${feedbackModalVisible}-${feedbackTarget}`}
+        open={feedbackModalVisible}
+        unitName={feedbackTarget ? (assignList.find(a => a.id === feedbackTarget)?.toDeptName || '') : ''}
+        onCancel={() => { setFeedbackModalVisible(false); setFeedbackTarget(null) }}
+        onOk={handleFeedbackOk}
+      />
+
+      {/* 转签约弹窗 */}
+      <ZhuanQianyueModal
+        key={`zhuanqianyue-${zhuanQianyueVisible}`}
+        open={zhuanQianyueVisible}
+        projectData={project}
+        onCancel={() => setZhuanQianyueVisible(false)}
+        onOk={() => {
+          // 写入系统事件：项目推进至签约
+          setProgressList(prev => [
+            {
+              id: `sys-zhuanqianyue-${Date.now()}`,
+              type: PROGRESS_TYPE.SYSTEM,
+              content: '项目推进至「签约」阶段',
+              reporter: CURRENT_USER,
+              updateTime: new Date().toISOString(),
+            },
+            ...prev,
+          ])
+          message.success('转签约成功！项目已进入签约阶段')
+          setZhuanQianyueVisible(false)
+          setTimeout(() => navigate('/project/qianyue'), 800)
+        }}
+      />
+
+      {/* 退库确认弹窗 */}
+      <Modal
+        title={
+          <span style={{ color: '#d4380d' }}>
+            <ExclamationCircleOutlined style={{ marginRight: 8 }} />
+            确认退库
+          </span>
+        }
+        open={tuikuVisible}
+        onCancel={() => { setTuikuVisible(false); setTuikuReason('') }}
+        okText="确认退库"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        onOk={handleTuikuConfirm}
+      >
+        <div style={{ marginBottom: 16 }}>
+          确定将项目「<strong>{project.projectName}</strong>」标记为退库吗？退库后不可恢复。
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: '#595959', marginBottom: 6 }}>
+            退库说明 <span style={{ color: '#bfbfbf' }}>（非必填，最多500字）</span>
+          </div>
+          <Input.TextArea
+            value={tuikuReason}
+            onChange={(e) => setTuikuReason(e.target.value)}
+            placeholder="请输入退库原因（非必填）"
+            maxLength={500}
+            showCount
+            rows={4}
+          />
+        </div>
+      </Modal>
+
+      {/* AI 月度进展摘要弹窗（严格按当前自然月） */}
+      <ProgressSummaryModal
+        open={aiVisible}
+        onCancel={() => setAiVisible(false)}
+        projectName={project.projectName}
+        stageLabel="在谈阶段"
+        items={progressList}
+        onSave={(content) => {
+          const now = new Date()
+          const pad2 = (n) => String(n).padStart(2, '0')
+          const ts = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`
+          setProgressList((prev) => [{
+            id: `ai-${Date.now()}`,
+            content,
+            reporter: role.userName || CURRENT_USER,
+            updateTime: ts,
+            type: PROGRESS_TYPE.NORMAL,
+            stage: '在谈阶段',
+          }, ...prev])
+        }}
       />
     </div>
   )

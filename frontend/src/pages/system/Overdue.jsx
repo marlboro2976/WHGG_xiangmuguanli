@@ -15,9 +15,9 @@ import {
 } from '@ant-design/icons'
 
 const DEFAULT_VALUES = {
+  mouhuaDays: 45,
   zaitanDays: 30,
   qianyueDays: 20,
-  luodiDays: 15,
   reportRemindDays: 7,
 }
 
@@ -69,6 +69,27 @@ export default function Overdue() {
           initialValues={DEFAULT_VALUES}
           style={{ maxWidth: 640 }}
         >
+          <div className="form-section-title">谋划阶段</div>
+          <Form.Item
+            name="mouhuaDays"
+            label="谋划阶段超期天数"
+            rules={[
+              { required: true, message: '请输入超期天数' },
+              { type: 'number', min: 1, max: 365, message: '请输入1-365之间的天数' },
+            ]}
+          >
+            <InputNumber
+              min={1}
+              max={365}
+              style={{ width: '100%' }}
+              addonAfter="天"
+              placeholder="请输入天数"
+            />
+          </Form.Item>
+          <div style={{ paddingLeft: '25%', fontSize: 12, color: '#999', marginTop: -16, marginBottom: 16 }}>
+            谋划项目超过设定天数无进展更新时，将发送超期预警
+          </div>
+
           <div className="form-section-title">在谈阶段</div>
           <Form.Item
             name="zaitanDays"
@@ -109,27 +130,6 @@ export default function Overdue() {
           </Form.Item>
           <div style={{ paddingLeft: '25%', fontSize: 12, color: '#999', marginTop: -16, marginBottom: 16 }}>
             签约项目超过设定天数无进展更新时，将发送超期预警
-          </div>
-
-          <div className="form-section-title">落地阶段</div>
-          <Form.Item
-            name="luodiDays"
-            label="落地阶段超期天数"
-            rules={[
-              { required: true, message: '请输入超期天数' },
-              { type: 'number', min: 1, max: 365, message: '请输入1-365之间的天数' },
-            ]}
-          >
-            <InputNumber
-              min={1}
-              max={365}
-              style={{ width: '100%' }}
-              addonAfter="天"
-              placeholder="请输入天数"
-            />
-          </Form.Item>
-          <div style={{ paddingLeft: '25%', fontSize: 12, color: '#999', marginTop: -16, marginBottom: 16 }}>
-            落地项目超过设定天数无进展更新时，将发送超期预警
           </div>
 
           <div className="form-section-title">汇报提醒</div>

@@ -210,3 +210,40 @@ body {
   padding-left: 8px;
   border-left: 3px solid #1677ff;
 }
+
+/* AI 摘要按钮：渐变动态背景 */
+.ai-grad-btn {
+  color: #fff !important;
+  border: none !important;
+  background: linear-gradient(120deg, #1677ff 0%, #36cfc9 35%, #722ed1 70%, #1677ff 100%);
+  background-size: 220% 220%;
+  animation: aiGradientShift 6s ease infinite;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.25);
+}
+.ai-grad-btn:hover,
+.ai-grad-btn:focus {
+  color: #fff !important;
+  opacity: 0.92;
+  box-shadow: 0 2px 10px rgba(22, 119, 255, 0.4);
+}
+@keyframes aiGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* AI 招商总结卡片：浅色渐变动态背景（区别于普通统计卡片） */
+.ai-summary-card {
+  background: linear-gradient(120deg, #eef5ff 0%, #f4eefe 30%, #e6f9f3 60%, #eef5ff 100%);
+  background-size: 240% 240%;
+  animation: aiSummaryFlow 12s ease infinite;
+  border: 1px solid #dbe7ff;
+}
+.ai-summary-card .ant-card-head {
+  background: transparent;
+}
+@keyframes aiSummaryFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

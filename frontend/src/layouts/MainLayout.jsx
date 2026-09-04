@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Avatar, Dropdown, Breadcrumb, Badge } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Breadcrumb, Badge, message, Button, Segmented, Select } from 'antd'
 import {
   ProjectOutlined,
   BarChartOutlined,
@@ -24,19 +24,29 @@ import {
   FieldTimeOutlined,
   NotificationOutlined,
   IdcardOutlined,
-  LogoutOutlined,
 } from '@ant-design/icons'
+import { useViewRole, useMessages } from '../store/viewStore'
+import { VIEW_ROLES } from '../constants/assignConfig'
 
 const { Header, Sider, Content } = Layout
 
 const menuItems = [
+  {
+    key: 'dashboard',
+    icon: <DashboardOutlined />,
+    label: '统计看板',
+    children: [
+      { key: '/dashboard/project', icon: <PieChartOutlined />, label: '项目统计分析' },
+      { key: '/dashboard/perf', icon: <LineChartOutlined />, label: '绩效维度看板' },
+    ],
+  },
   {
     key: 'project',
     icon: <ProjectOutlined />,
     label: '项目全生命周期管理',
     children: [
       { key: '/project/mouhua', icon: <AppstoreOutlined />, label: '项目谋划' },
-      { key: '/project/zaitan', icon: <TeamOutlined />, label: '跟踪洽谈（在谈）' },
+      { key: '/project/zaitan', icon: <TeamOutlined />, label: '跟踪洽谈' },
       { key: '/project/qianyue', icon: <FileTextOutlined />, label: '签约注册' },
       { key: '/project/luodi', icon: <AuditOutlined />, label: '项目落地' },
       { key: '/project/yanpan', icon: <WarningOutlined />, label: '项目重复研判' },
@@ -49,15 +59,6 @@ const menuItems = [
     label: '绩效考核',
     children: [
       { key: '/performance', icon: <PullRequestOutlined />, label: '绩效考核' },
-    ],
-  },
-  {
-    key: 'dashboard',
-    icon: <DashboardOutlined />,
-    label: '统计看板',
-    children: [
-      { key: '/dashboard/project', icon: <PieChartOutlined />, label: '项目维度看板' },
-      { key: '/dashboard/perf', icon: <LineChartOutlined />, label: '绩效维度看板' },
     ],
   },
   {
@@ -76,17 +77,17 @@ const menuItems = [
   },
 ]
 
-// 面包屑映射
 const breadcrumbMap = {
   '/project/mouhua': ['项目全生命周期管理', '项目谋划'],
   '/project/mouhua/detail': ['项目全生命周期管理', '项目谋划', '项目详情'],
-  '/project/zaitan': ['项目全生命周期管理', '跟踪洽谈（在谈）'],
+  '/project/zaitan': ['项目全生命周期管理', '跟踪洽谈'],
+  '/project/zaitan/detail': ['项目全生命周期管理', '跟踪洽谈', '项目详情'],
   '/project/qianyue': ['项目全生命周期管理', '签约注册'],
   '/project/luodi': ['项目全生命周期管理', '项目落地'],
   '/project/yanpan': ['项目全生命周期管理', '项目重复研判'],
   '/project/tuiku': ['项目全生命周期管理', '项目退库'],
   '/performance': ['绩效考核', '绩效考核'],
-  '/dashboard/project': ['统计看板', '项目维度看板'],
+  '/dashboard/project': ['统计看板', '项目统计分析'],
   '/dashboard/perf': ['统计看板', '绩效维度看板'],
   '/system/account': ['系统管理', '账号管理'],
   '/system/role': ['系统管理', '角色管理'],
@@ -102,37 +103,69 @@ export default function MainLayout() {
   const [openKeys, setOpenKeys] = useState(['project'])
   const navigate = useNavigate()
   const location = useLocation()
+  const { role, setRole } = useViewRole()
+  const { unread } = useMessages()
 
-  // 根据当前路径确定展开的菜单
+  const realPath = useMemo(() => {
+    const h = location.hash || ''
+    if (h.startsWith('#')) return h.slice(1) || '/'
+    return location.pathname
+  }, [location.pathname, location.hash])
+
   const currentOpenKeys = useMemo(() => {
-    const path = location.pathname
     for (const item of menuItems) {
-      if (item.children?.some(c => path.startsWith(c.key))) {
-        return [item.key]
+      if (item.children?.some(c => realPath.startsWith(c.key))) {
+        const set = new Set([...openKeys, item.key])
+        return Array.from(set)
       }
     }
     return openKeys
-  }, [location.pathname])
+  }, [realPath, openKeys])
 
   const getBreadcrumbKey = (path) => {
     if (path.startsWith('/project/mouhua/detail')) return '/project/mouhua/detail'
+    if (path.startsWith('/project/zaitan/detail')) return '/project/zaitan/detail'
     return path
   }
 
-  const breadcrumbItems = (breadcrumbMap[getBreadcrumbKey(location.pathname)] || []).map((title, i, arr) => ({
+  const breadcrumbItems = (breadcrumbMap[getBreadcrumbKey(realPath)] || []).map((title, i, arr) => ({
     title: i === arr.length - 1 ? <span style={{ color: '#333' }}>{title}</span> : title,
   }))
 
   const userMenuItems = [
     { key: 'profile', icon: <UserOutlined />, label: '个人中心' },
-    { type: 'divider' },
-    { key: 'logout', icon: <LogoutOutlined />, label: '退出登录' },
   ]
+
+  const handleUserMenuClick = ({ key }) => {
+    if (key === 'profile') navigate('/system/profile')
+  }
 
   const getMenuKey = (path) => {
     if (path.startsWith('/project/mouhua')) return '/project/mouhua'
+    if (path.startsWith('/project/zaitan')) return '/project/zaitan'
+    if (path.startsWith('/project/qianyue')) return '/project/qianyue'
+    if (path.startsWith('/project/luodi')) return '/project/luodi'
+    if (path.startsWith('/project/yanpan')) return '/project/yanpan'
+    if (path.startsWith('/project/tuiku')) return '/project/tuiku'
+    if (path.startsWith('/dashboard/project')) return '/dashboard/project'
+    if (path.startsWith('/dashboard/perf')) return '/dashboard/perf'
+    if (path.startsWith('/system/')) {
+      const matched = menuItems.find(m => m.key === 'system').children.find(c => path.startsWith(c.key))
+      return matched ? matched.key : path
+    }
     return path
   }
+
+  const onViewRoleChange = (roleKey) => {
+    setRole(roleKey)
+    const r = VIEW_ROLES.find(x => x.key === roleKey)
+    message.success(`已切换至${r.isSponsor ? '发起人' : '接收方'}视角：${r.label}`)
+    if (realPath.startsWith('/project/zaitan/detail') || realPath.startsWith('/project/mouhua/detail')) {
+      navigate('/project/zaitan')
+    }
+  }
+
+  const receiverRoles = VIEW_ROLES.filter(r => !r.isSponsor)
 
   return (
     <Layout style={{ height: '100vh' }}>
@@ -172,13 +205,11 @@ export default function MainLayout() {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[getMenuKey(location.pathname)]}
+          selectedKeys={[getMenuKey(realPath)]}
           openKeys={currentOpenKeys}
           onOpenChange={(keys) => setOpenKeys(keys)}
           items={menuItems}
-          onClick={({ key }) => {
-            if (key.startsWith('/')) navigate(key)
-          }}
+          onClick={({ key }) => { if (key.startsWith('/')) navigate(key) }}
           style={{ borderRight: 0, paddingTop: 8 }}
         />
       </Sider>
@@ -198,15 +229,49 @@ export default function MainLayout() {
           }}
         >
           <Breadcrumb items={breadcrumbItems} style={{ fontSize: 13 }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <SearchOutlined style={{ fontSize: 16, color: '#8c8c8c', cursor: 'pointer' }} />
-            <Badge count={3} size="small">
-              <BellOutlined style={{ fontSize: 16, color: '#8c8c8c', cursor: 'pointer' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* 视角切换按钮组 */}
+            <Segmented
+              value={role.isSponsor ? 'sponsor' : 'receiver'}
+              size="small"
+              options={[
+                { label: '发起人视角', value: 'sponsor' },
+                { label: '接收方视角', value: 'receiver' },
+              ]}
+              onChange={(val) => {
+                if (val === 'sponsor') {
+                  onViewRoleChange('sponsor')
+                } else {
+                  onViewRoleChange(receiverRoles[0].key)
+                }
+              }}
+              style={{ fontSize: 12 }}
+            />
+            {!role.isSponsor && receiverRoles.length > 1 && (
+              <Select
+                size="small"
+                value={role.key}
+                onChange={onViewRoleChange}
+                options={receiverRoles.map(r => ({ label: r.deptName, value: r.key }))}
+                style={{ width: 110, fontSize: 12 }}
+                popupMatchSelectWidth={false}
+              />
+            )}
+
+            <SearchOutlined
+              style={{ fontSize: 16, color: '#8c8c8c', cursor: 'pointer' }}
+              onClick={() => message.info('搜索功能开发中')}
+            />
+            <Badge count={unread} size="small">
+              <BellOutlined
+                style={{ fontSize: 16, color: '#8c8c8c', cursor: 'pointer' }}
+                onClick={() => navigate('/system/notice')}
+              />
             </Badge>
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <Avatar size="small" icon={<UserOutlined />} style={{ background: '#1677ff' }} />
-                <span style={{ fontSize: 13, color: '#333' }}>投促局管理员</span>
+                <Avatar size="small" icon={<UserOutlined />} style={{ background: role.isSponsor ? '#1677ff' : '#fa8c16' }} />
+                <span style={{ fontSize: 13, color: '#333' }}>{role.userName}</span>
               </div>
             </Dropdown>
           </div>
@@ -219,7 +284,7 @@ export default function MainLayout() {
             height: 'calc(100vh - 56px)',
           }}
         >
-          <Outlet />
+          <Outlet context={{ role }} />
         </Content>
       </Layout>
     </Layout>

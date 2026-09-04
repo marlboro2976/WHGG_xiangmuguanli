@@ -4,25 +4,20 @@ import {
   Button,
   Input,
   Select,
-  Space,
   Tag,
   Modal,
   Form,
   message,
-  Switch,
-  Popconfirm,
+  Alert,
 } from 'antd'
 import {
-  PlusOutlined,
   SearchOutlined,
   ReloadOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  UserOutlined,
+  TeamOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
 
 const ROLE_OPTIONS = [
-  { label: '全部角色', value: '' },
   { label: '系统管理员', value: 'admin' },
   { label: '区级领导', value: 'district_leader' },
   { label: '区投促局', value: 'district_bureau' },
@@ -30,14 +25,9 @@ const ROLE_OPTIONS = [
   { label: '项目专员', value: 'specialist' },
 ]
 
-const DEPT_OPTIONS = [
-  { label: '区级领导', value: '区级领导' },
-  { label: '区投促局', value: '区投促局' },
-  { label: '光谷园区', value: '光谷园区' },
-  { label: '东湖园区', value: '东湖园区' },
-  { label: '经开园区', value: '经开园区' },
-]
+const ROLE_FILTER_OPTIONS = [{ label: '全部角色', value: '' }, ...ROLE_OPTIONS]
 
+// 账号由OA系统统一提供，本系统仅支持绑定角色
 const MOCK_DATA = [
   { key: 1, username: 'admin', name: '系统管理员', department: '区投促局', role: 'admin', status: 'enabled', createdAt: '2025-01-10 09:00:00' },
   { key: 2, username: 'zhangwei', name: '张伟', department: '区投促局', role: 'district_bureau', status: 'enabled', createdAt: '2025-02-15 14:30:00' },
@@ -57,8 +47,8 @@ export default function Account() {
   const [searchText, setSearchText] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 })
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState(null)
+  const [bindOpen, setBindOpen] = useState(false)
+  const [bindRecord, setBindRecord] = useState(null)
   const [form] = Form.useForm()
   const [data, setData] = useState(MOCK_DATA)
 
@@ -80,96 +70,50 @@ export default function Account() {
     return filteredData.slice(start, start + pagination.pageSize)
   }, [filteredData, pagination])
 
-  const handleAdd = () => {
-    setEditingRecord(null)
-    form.resetFields()
-    setModalOpen(true)
-  }
-
-  const handleEdit = (record) => {
-    setEditingRecord(record)
-    form.setFieldsValue(record)
-    setModalOpen(true)
-  }
-
-  const handleToggleStatus = (record, checked) => {
-    setData(prev => prev.map(item =>
-      item.key === record.key ? { ...item, status: checked ? 'enabled' : 'disabled' } : item
-    ))
-    message.success(`已${checked ? '启用' : '禁用'}账号「${record.name}」`)
-  }
-
-  const handleDelete = (record) => {
-    setData(prev => prev.filter(item => item.key !== record.key))
-    message.success('删除成功')
-  }
-
   const handleReset = () => {
     setSearchText('')
     setRoleFilter('')
     setPagination({ current: 1, pageSize: 10 })
   }
 
-  const handleModalOk = () => {
+  const handleBind = (record) => {
+    setBindRecord(record)
+    form.setFieldsValue({ role: record.role })
+    setBindOpen(true)
+  }
+
+  const handleBindOk = () => {
     form.validateFields().then(values => {
-      if (editingRecord) {
-        setData(prev => prev.map(item =>
-          item.key === editingRecord.key ? { ...item, ...values } : item
-        ))
-        message.success('编辑成功')
-      } else {
-        const newKey = Math.max(...data.map(d => d.key)) + 1
-        setData(prev => [...prev, {
-          key: newKey,
-          ...values,
-          status: 'enabled',
-          createdAt: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
-        }])
-        message.success('新增成功')
-      }
-      setModalOpen(false)
+      setData(prev => prev.map(item =>
+        item.key === bindRecord.key ? { ...item, role: values.role } : item
+      ))
+      message.success(`已为「${bindRecord.name}」绑定角色：${roleLabel(values.role)}`)
+      setBindOpen(false)
+      setBindRecord(null)
     })
   }
 
   const columns = [
-    { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
-    { title: '姓名', dataIndex: 'name', key: 'name', width: 100 },
-    { title: '部门', dataIndex: 'department', key: 'department', width: 120 },
+    { title: '用户名', dataIndex: 'username', key: 'username', width: 130 },
+    { title: '姓名', dataIndex: 'name', key: 'name', width: 110 },
+    { title: '部门', dataIndex: 'department', key: 'department', width: 130 },
     {
-      title: '角色', dataIndex: 'role', key: 'role', width: 120, align: 'center',
+      title: '角色', dataIndex: 'role', key: 'role', width: 130, align: 'center',
       render: (v) => <Tag color="blue">{roleLabel(v)}</Tag>,
     },
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 100, align: 'center',
-      render: (_, record) => (
-        <Switch
-          checked={record.status === 'enabled'}
-          checkedChildren="启用"
-          unCheckedChildren="禁用"
-          size="small"
-          onChange={(checked) => handleToggleStatus(record, checked)}
-        />
-      ),
+      render: (v) => v === 'enabled'
+        ? <Tag color="success" style={{ margin: 0 }}>启用</Tag>
+        : <Tag style={{ margin: 0 }}>停用</Tag>,
     },
     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180, align: 'center' },
     {
-      title: '操作', key: 'action', width: 200, align: 'center', fixed: 'right',
+      title: '操作', key: 'action', width: 140, align: 'center', fixed: 'right',
       render: (_, record) => (
-        <Space size={0} split={<span style={{ color: '#d9d9d9', margin: '0 6px' }}>|</span>}>
-          <span className="action-link" onClick={() => handleEdit(record)}>
-            <EditOutlined /> 编辑
-          </span>
-          <Popconfirm
-            title={`确定要删除账号「${record.name}」吗？`}
-            onConfirm={() => handleDelete(record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <span className="action-link danger">
-              <DeleteOutlined /> 删除
-            </span>
-          </Popconfirm>
-        </Space>
+        <span className="action-link" onClick={() => handleBind(record)}>
+          <TeamOutlined /> 绑定角色
+        </span>
       ),
     },
   ]
@@ -178,9 +122,6 @@ export default function Account() {
     <div className="page-container">
       <div className="filter-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            新增账号
-          </Button>
           <Input
             style={{ width: 240 }}
             placeholder="搜索用户名/姓名"
@@ -194,7 +135,7 @@ export default function Account() {
             placeholder="筛选角色"
             value={roleFilter}
             onChange={(v) => { setRoleFilter(v); setPagination(p => ({ ...p, current: 1 })) }}
-            options={ROLE_OPTIONS}
+            options={ROLE_FILTER_OPTIONS}
           />
           <Button icon={<ReloadOutlined />} onClick={handleReset}>
             重置
@@ -208,6 +149,13 @@ export default function Account() {
             共 <span style={{ color: '#1677ff', fontWeight: 600 }}>{filteredData.length}</span> 个账号
           </div>
         </div>
+        <Alert
+          message="账号由OA系统统一提供并同步，本系统不支持新增、编辑、删除及启用/停用操作，仅支持为账号绑定平台角色。"
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          style={{ margin: '0 16px 16px' }}
+        />
         <Table
           columns={columns}
           dataSource={pageData}
@@ -226,27 +174,22 @@ export default function Account() {
       </div>
 
       <Modal
-        title={editingRecord ? '编辑账号' : '新增账号'}
-        open={modalOpen}
-        onOk={handleModalOk}
-        onCancel={() => setModalOpen(false)}
+        title="绑定角色"
+        open={bindOpen}
+        onOk={handleBindOk}
+        onCancel={() => { setBindOpen(false); setBindRecord(null) }}
         okText="确定"
         cancelText="取消"
         destroyOnClose
-        width={500}
+        width={480}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-            <Input prefix={<UserOutlined />} placeholder="请输入用户名" />
-          </Form.Item>
-          <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
-            <Input placeholder="请输入姓名" />
-          </Form.Item>
-          <Form.Item name="department" label="部门" rules={[{ required: true, message: '请选择部门' }]}>
-            <Select placeholder="请选择部门" options={DEPT_OPTIONS} />
-          </Form.Item>
-          <Form.Item name="role" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
-            <Select placeholder="请选择角色" options={ROLE_OPTIONS.filter(o => o.value)} />
+        <div style={{ padding: '8px 0 16px', fontSize: 13, color: '#595959' }}>
+          账号：<span style={{ fontWeight: 600, color: '#262626' }}>{bindRecord?.name}（{bindRecord?.username}）</span>
+          <span style={{ color: '#bfbfbf', marginLeft: 12 }}>{bindRecord?.department}</span>
+        </div>
+        <Form form={form} layout="vertical">
+          <Form.Item name="role" label="平台角色" rules={[{ required: true, message: '请选择角色' }]}>
+            <Select placeholder="请选择角色" options={ROLE_OPTIONS} />
           </Form.Item>
         </Form>
       </Modal>

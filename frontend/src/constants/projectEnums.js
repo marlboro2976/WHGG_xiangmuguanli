@@ -30,8 +30,11 @@ export const WUGU_OPTIONS = ['光谷优势产业集群', '车谷优势产业集�
 // 所属片区
 export const BELONG_AREA_OPTIONS = ['临空港片区', '阳逻港片区', '不涉及']
 
-// 建设性质
+// 建设性质（第一层）
 export const CONSTRUCTION_NATURE_OPTIONS = ['新建', '扩建', '改建', '技改', '开业', '其它']
+
+// 建设性质第二层（独立选择，无联动）
+export const CONSTRUCTION_NATURE_LEVEL2_OPTIONS = ['固投开工类', '开业营业类']
 
 // 招商类型
 export const MERCHANT_TYPE_OPTIONS = ['产业链招商', '资本链招商（股权融资）', '科创链招商', '场景招商', '央地合作', '人才招引（楚商校友）', '其它']
@@ -277,3 +280,136 @@ export const CORE_DECISION_OPTIONS = {
   land: ['投委会', '常务会', '供地会'],
   other: ['不涉及'],
 }
+
+// ========== 签约阶段新增枚举 ==========
+
+// 协议类型
+export const AGREEMENT_TYPE_OPTIONS = ['投资协议', '框架协议', '补充协议', '其他']
+
+// 投资形态
+export const INVEST_FORM_OPTIONS = ['新设', '增资', '并购', '技改', '其他']
+
+// 用地情况单位
+export const LAND_AREA_UNIT_OPTIONS = ['亩', '平方米']
+
+// 总部经济类型（两级无联动）
+export const HQ_ECONOMY_LEVEL1_OPTIONS = ['全球总部', '亚太总部', '中国总部', '华中区域总部', '第二总部', '功能性总部', '其它']
+export const HQ_ECONOMY_LEVEL2_OPTIONS = ['用地建设类', '开业营运类']
+
+// 旧版枚举（兼容旧组件）
+export const HQ_ECONOMY_TYPE_OPTIONS = ['全球总部', '亚太总部', '中国总部', '华中区域总部', '第二总部', '功能性总部', '其它']
+export const HQ_BUILD_TYPE_OPTIONS = ['用地建设类', '开业营运类']
+export const CONSTRUCTION_TYPE_OPTIONS = {
+  '新建': ['固投开工类'],
+  '扩建': ['固投开工类'],
+  '改建': ['固投开工类'],
+  '技改': ['固投开工类'],
+  '开业': ['开业营业类'],
+  '其它': ['固投开工类', '开业营业类'],
+}
+
+// 策划类型
+export const PLANNING_TYPE_OPTIONS = ['一般经营性项目', '工业项目', '划拨类用地项目', '其它']
+
+// 浙商类型
+export const ZHESHANG_TYPE_OPTIONS = ['浙商回归', '浙商新增投资', '其他']
+
+// 考核项目
+export const ASSESS_PROJECT_OPTIONS = ['考核项目', '非考核项目']
+
+// 内外贸
+export const DOMESTIC_FOREIGN_TRADE_OPTIONS = ['内贸', '外贸', '内外贸结合']
+
+// 存量企业类型
+export const STOCK_ENTERPRISE_TYPE_FULL_OPTIONS = ['为存量企业新项目投资', '为存量企业技改投资', '其他']
+
+// 开工开业类型
+export const START_WORK_TYPE_OPTIONS = ['已开工（设备购置类）', '开业', '已开工（建安类）']
+
+// 立项属性
+export const PROJECT_ATTR_OPTIONS = ['审批', '核准', '备案']
+
+// GB/T 4754-2017 国民经济行业分类 门类（简化版，20个门类）
+export const GB_NATIONAL_INDUSTRY = [
+  {
+    value: 'A', label: 'A 农、林、牧、渔业',
+    children: [
+      { value: '01', label: '01 农业', children: [
+        { value: '011', label: '011 谷物种植', children: [{ value: '0111', label: '0111 稻谷种植' }, { value: '0112', label: '0112 小麦种植' }, { value: '0113', label: '0113 玉米种植' }] },
+        { value: '012', label: '012 豆类、油料和薯类种植' },
+      ]},
+      { value: '02', label: '02 林业' }, { value: '03', label: '03 畜牧业' }, { value: '04', label: '04 渔业' },
+    ]
+  },
+  {
+    value: 'B', label: 'B 采矿业',
+    children: [
+      { value: '06', label: '06 煤炭开采和洗选业' }, { value: '07', label: '07 石油和天然气开采业' },
+      { value: '08', label: '08 黑色金属矿采选业' }, { value: '09', label: '09 有色金属矿采选业' },
+    ]
+  },
+  {
+    value: 'C', label: 'C 制造业',
+    children: [
+      { value: '14', label: '14 食品制造业' },
+      { value: '26', label: '26 化学原料和化学制品制造业' },
+      { value: '27', label: '27 医药制造业', children: [
+        { value: '271', label: '271 化学药品原料药制造' }, { value: '272', label: '272 化学药品制剂制造' },
+        { value: '273', label: '273 中药饮片加工' }, { value: '274', label: '274 中成药生产' },
+        { value: '275', label: '275 兽用药品制造' }, { value: '276', label: '276 生物药品制造' },
+      ]},
+      { value: '35', label: '35 专用设备制造业' },
+      { value: '36', label: '36 汽车制造业', children: [
+        { value: '361', label: '361 汽车整车制造' }, { value: '362', label: '362 汽车用发动机制造' },
+        { value: '366', label: '366 汽车零部件及配件制造' }, { value: '367', label: '367 汽车车身、挂车制造' },
+      ]},
+      { value: '37', label: '37 铁路、船舶、航空航天和其他运输设备制造业' },
+      { value: '38', label: '38 电气机械和器材制造业' },
+      { value: '39', label: '39 计算机、通信和其他电子设备制造业', children: [
+        { value: '391', label: '391 计算机制造' }, { value: '392', label: '392 通信设备制造' },
+        { value: '393', label: '393 广播电视设备制造' }, { value: '394', label: '394 雷达及配套设备制造' },
+        { value: '395', label: '395 视听设备制造' }, { value: '396', label: '396 智能消费设备制造' },
+        { value: '397', label: '397 电子器件制造' }, { value: '398', label: '398 电子元件及电子专用材料制造' },
+      ]},
+      { value: '40', label: '40 仪器仪表制造业' },
+    ]
+  },
+  {
+    value: 'D', label: 'D 电力、热力、燃气及水生产和供应业',
+    children: [
+      { value: '44', label: '44 电力、热力生产和供应业' }, { value: '45', label: '45 燃气生产和供应业' },
+      { value: '46', label: '46 水的生产和供应业' },
+    ]
+  },
+  { value: 'E', label: 'E 建筑业', children: [{ value: '47', label: '47 房屋建筑业' }, { value: '48', label: '48 土木工程建筑业' }, { value: '49', label: '49 建筑安装业' }, { value: '50', label: '50 建筑装饰、装修和其他建筑业' }] },
+  { value: 'F', label: 'F 批发和零售业', children: [{ value: '51', label: '51 批发业' }, { value: '52', label: '52 零售业' }] },
+  { value: 'G', label: 'G 交通运输、仓储和邮政业', children: [{ value: '53', label: '53 铁路运输业' }, { value: '54', label: '54 道路运输业' }, { value: '59', label: '59 仓储业' }, { value: '60', label: '60 邮政业' }] },
+  { value: 'H', label: 'H 住宿和餐饮业', children: [{ value: '61', label: '61 住宿业' }, { value: '62', label: '62 餐饮业' }] },
+  {
+    value: 'I', label: 'I 信息传输、软件和信息技术服务业',
+    children: [
+      { value: '63', label: '63 电信、广播电视和卫星传输服务' },
+      { value: '64', label: '64 互联网和相关服务' },
+      { value: '65', label: '65 软件和信息技术服务业', children: [
+        { value: '651', label: '651 软件开发' }, { value: '652', label: '652 集成电路设计' },
+        { value: '653', label: '653 信息系统集成和物联网技术服务' }, { value: '654', label: '654 运行维护服务' },
+        { value: '655', label: '655 信息处理和存储支持服务' }, { value: '656', label: '656 信息技术咨询服务' },
+        { value: '657', label: '657 数字内容服务' }, { value: '659', label: '659 其他信息技术服务业' },
+      ]},
+    ]
+  },
+  { value: 'J', label: 'J 金融业', children: [{ value: '66', label: '66 货币金融服务' }, { value: '67', label: '67 资本市场服务' }, { value: '68', label: '68 保险业' }, { value: '69', label: '69 其他金融业' }] },
+  { value: 'K', label: 'K 房地产业', children: [{ value: '70', label: '70 房地产业' }] },
+  { value: 'L', label: 'L 租赁和商务服务业', children: [{ value: '71', label: '71 租赁业' }, { value: '72', label: '72 商务服务业' }] },
+  { value: 'M', label: 'M 科学研究和技术服务业', children: [{ value: '73', label: '73 研究和试验发展' }, { value: '74', label: '74 专业技术服务业' }, { value: '75', label: '75 科技推广和应用服务业' }] },
+  { value: 'N', label: 'N 水利、环境和公共设施管理业', children: [{ value: '76', label: '76 水利管理业' }, { value: '77', label: '77 生态保护和环境治理业' }, { value: '78', label: '78 公共设施管理业' }] },
+  { value: 'O', label: 'O 居民服务、修理和其他服务业', children: [{ value: '79', label: '79 居民服务业' }, { value: '80', label: '80 机动车、电子产品和日用产品修理业' }, { value: '81', label: '81 其他服务业' }] },
+  { value: 'P', label: 'P 教育', children: [{ value: '82', label: '82 教育' }] },
+  { value: 'Q', label: 'Q 卫生和社会工作', children: [{ value: '83', label: '83 卫生' }, { value: '84', label: '84 社会工作' }] },
+  { value: 'R', label: 'R 文化、体育和娱乐业', children: [{ value: '85', label: '85 新闻和出版业' }, { value: '86', label: '86 广播、电视、电影和录音制作业' }, { value: '87', label: '87 文化艺术业' }, { value: '88', label: '88 体育' }, { value: '89', label: '89 娱乐业' }] },
+  { value: 'S', label: 'S 公共管理、社会保障和社会组织', children: [{ value: '90', label: '90 中国共产党机关' }, { value: '91', label: '91 国家机构' }] },
+  { value: 'T', label: 'T 国际组织', children: [{ value: '97', label: '97 国际组织' }] },
+]
+
+// 服务业类别（简化）
+export const SERVICE_INDUSTRY_OPTIONS = ['生产性服务业', '生活性服务业', '公共服务业']

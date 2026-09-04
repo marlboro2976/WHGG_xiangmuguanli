@@ -1,24 +1,16 @@
-import { useState } from 'react'
 import {
-  Form,
-  Input,
-  Button,
   Card,
   Avatar,
   Tag,
   Divider,
-  message,
   Descriptions,
-  Space,
 } from 'antd'
 import {
   UserOutlined,
-  SaveOutlined,
   TeamOutlined,
   IdcardOutlined,
   PhoneOutlined,
   MailOutlined,
-  EditOutlined,
 } from '@ant-design/icons'
 
 const INITIAL_PROFILE = {
@@ -33,37 +25,7 @@ const INITIAL_PROFILE = {
 }
 
 export default function Profile() {
-  const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-  const [profile, setProfile] = useState(INITIAL_PROFILE)
-  const [editing, setEditing] = useState(false)
-
-  const handleSave = () => {
-    form.validateFields().then(values => {
-      setLoading(true)
-      setTimeout(() => {
-        setProfile(prev => ({ ...prev, ...values }))
-        setLoading(false)
-        setEditing(false)
-        message.success('个人信息已更新')
-      }, 500)
-    })
-  }
-
-  const handleEdit = () => {
-    form.setFieldsValue({
-      name: profile.name,
-      phone: profile.phone,
-      email: profile.email,
-      department: profile.department,
-    })
-    setEditing(true)
-  }
-
-  const handleCancel = () => {
-    setEditing(false)
-    form.resetFields()
-  }
+  const profile = INITIAL_PROFILE
 
   return (
     <div className="page-container">
@@ -111,99 +73,31 @@ export default function Profile() {
                 基本信息
               </span>
             }
-            extra={
-              !editing && (
-                <Button type="link" icon={<EditOutlined />} onClick={handleEdit} style={{ padding: 0 }}>
-                  编辑资料
-                </Button>
-              )
-            }
             style={{ borderRadius: 4 }}
           >
-            {!editing ? (
-              <div>
-                <Descriptions
-                  column={1}
-                  labelStyle={{ width: 100, color: '#666', fontSize: 14, padding: '12px 0' }}
-                  contentStyle={{ fontSize: 14, color: '#333', padding: '12px 0' }}
-                  bordered
-                >
-                  <Descriptions.Item label="姓名">{profile.name}</Descriptions.Item>
-                  <Descriptions.Item label="手机">
-                    <PhoneOutlined style={{ color: '#1677ff', marginRight: 6 }} />
-                    {profile.phone}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="邮箱">
-                    <MailOutlined style={{ color: '#1677ff', marginRight: 6 }} />
-                    {profile.email}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="部门">
-                    <TeamOutlined style={{ color: '#1677ff', marginRight: 6 }} />
-                    {profile.department}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="角色">
-                    <Tag color="blue" style={{ margin: 0 }}>{profile.role}</Tag>
-                  </Descriptions.Item>
-                </Descriptions>
-              </div>
-            ) : (
-              <Form
-                form={form}
-                layout="horizontal"
-                labelCol={{ span: 4 }}
-                wrapperCol={{ span: 14 }}
-                initialValues={{
-                  name: profile.name,
-                  phone: profile.phone,
-                  email: profile.email,
-                  department: profile.department,
-                }}
-                style={{ marginTop: 8 }}
-              >
-                <Form.Item
-                  name="name"
-                  label="姓名"
-                  rules={[{ required: true, message: '请输入姓名' }]}
-                >
-                  <Input placeholder="请输入姓名" prefix={<UserOutlined />} />
-                </Form.Item>
-                <Form.Item
-                  name="phone"
-                  label="手机"
-                  rules={[
-                    { required: true, message: '请输入手机号' },
-                    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' },
-                  ]}
-                >
-                  <Input placeholder="请输入手机号" prefix={<PhoneOutlined />} maxLength={11} />
-                </Form.Item>
-                <Form.Item
-                  name="email"
-                  label="邮箱"
-                  rules={[
-                    { required: true, message: '请输入邮箱' },
-                    { type: 'email', message: '请输入正确的邮箱格式' },
-                  ]}
-                >
-                  <Input placeholder="请输入邮箱" prefix={<MailOutlined />} />
-                </Form.Item>
-                <Form.Item
-                  name="department"
-                  label="部门"
-                  rules={[{ required: true, message: '请输入部门' }]}
-                >
-                  <Input placeholder="请输入部门" prefix={<TeamOutlined />} />
-                </Form.Item>
-                <Form.Item wrapperCol={{ offset: 4, span: 14 }} style={{ marginTop: 24 }}>
-                  <Space size={12}>
-                    <Button type="primary" icon={<SaveOutlined />} loading={loading} onClick={handleSave}>
-                      保存
-                    </Button>
-                    <Button onClick={handleCancel}>取消</Button>
-                  </Space>
-                </Form.Item>
-              </Form>
-            )}
+            <Descriptions
+              column={1}
+              labelStyle={{ width: 100, color: '#666', fontSize: 14, padding: '16px 24px' }}
+              contentStyle={{ fontSize: 14, color: '#333', padding: '16px 24px' }}
+              bordered
+            >
+              <Descriptions.Item label="姓名">{profile.name}</Descriptions.Item>
+              <Descriptions.Item label="手机">
+                <PhoneOutlined style={{ color: '#1677ff', marginRight: 6 }} />
+                {profile.phone}
+              </Descriptions.Item>
+              <Descriptions.Item label="邮箱">
+                <MailOutlined style={{ color: '#1677ff', marginRight: 6 }} />
+                {profile.email}
+              </Descriptions.Item>
+              <Descriptions.Item label="部门">
+                <TeamOutlined style={{ color: '#1677ff', marginRight: 6 }} />
+                {profile.department}
+              </Descriptions.Item>
+              <Descriptions.Item label="角色">
+                <Tag color="blue" style={{ margin: 0 }}>{profile.role}</Tag>
+              </Descriptions.Item>
+            </Descriptions>
           </Card>
         </div>
       </div>

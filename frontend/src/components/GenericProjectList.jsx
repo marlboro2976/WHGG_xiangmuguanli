@@ -7,6 +7,7 @@ import {
   SearchOutlined, ExportOutlined, ReloadOutlined, PlusOutlined, SettingOutlined,
   MoreOutlined, UpOutlined, DownOutlined, EyeOutlined, FileTextOutlined,
   PauseCircleOutlined, ImportOutlined, CheckCircleOutlined, ArrowRightOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons'
 
 const { RangePicker } = DatePicker
@@ -22,6 +23,7 @@ export default function GenericProjectList({
   nextStageConfirmTitle, // 推进确认弹窗标题
   canAdd = true,
   canImport = true,
+  onImport,        // 自定义导入按钮点击回调（不传则显示demo提示）
   onAdd,
   addExtraButtons, // 工具栏左侧额外按钮
   scrollX = 2200,
@@ -44,6 +46,9 @@ export default function GenericProjectList({
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 })
   const [filterExpanded, setFilterExpanded] = useState(false)
   const [columnPopoverOpen, setColumnPopoverOpen] = useState(false)
+  const [tuikuVisible, setTuikuVisible] = useState(false)
+  const [tuikuRecord, setTuikuRecord] = useState(null)
+  const [tuikuReason, setTuikuReason] = useState('')
 
   const data = useMemo(() => dataList, [dataList])
 
@@ -83,7 +88,7 @@ export default function GenericProjectList({
   const handleSearch = () => { message.success('查询完成'); setPagination(p => ({ ...p, current: 1 })) }
   const handleReset = () => {
     const resetState = { projectName: '', industryType: undefined, category: undefined, acceptStatus: undefined, auditStatus: undefined, dateRange: null }
-    ;(extraFilters || []).forEach(f => { resetState[f.key] = f.type === 'input' ? '' : undefined })
+    ;(extraFilters || []).forEach(f => { resetState[f.key] = f.type === 'input' ? '' : f.type === 'dateRange' ? null : undefined })
     setFilters(resetState)
   }
 
@@ -115,11 +120,9 @@ export default function GenericProjectList({
   const handleMoreClick = (e, record) => {
     const name = record.projectName || record['项目名称']
     if (e.key === 'stop') {
-      Modal.confirm({
-        title: '确认退库', content: `确定将项目「${name}」标记为退库吗？退库后不可恢复。`,
-        okText: '确认退库', cancelText: '取消', okButtonProps: { danger: true },
-        onOk: () => message.success('已标记为退库'),
-      })
+      setTuikuRecord(record)
+      setTuikuReason('')
+      setTuikuVisible(true)
     } else if (e.key === 'next' && nextStageText) {
       Modal.confirm({
         title: nextStageConfirmTitle || `转${nextStageText}`,
@@ -227,6 +230,11 @@ export default function GenericProjectList({
                 return <Input key={f.key} style={{ width: f.width || fw }} placeholder={f.placeholder || f.label} suffix={f.suffix}
                   value={filters[f.key] || ''} onChange={(e) => setFilters({ ...filters, [f.key]: e.target.value })} />
               }
+              if (f.type === 'dateRange') {
+                return <RangePicker key={f.key} style={{ width: f.width || 260 }} value={filters[f.key]}
+                  placeholder={f.placeholder || ['开始日期', '结束日期']}
+                  onChange={(v) => setFilters({ ...filters, [f.key]: v })} />
+              }
               return <Select key={f.key} placeholder={f.label} {...selectCommon} style={{ width: f.width || fw }}
                 value={filters[f.key]} onChange={(v) => setFilters({ ...filters, [f.key]: v })}
                 options={f.options} />
@@ -271,7 +279,7 @@ export default function GenericProjectList({
           </div>
           <Space size={8}>
             {canAdd && <Button type="primary" icon={<PlusOutlined />} onClick={() => onAdd ? onAdd() : message.info('新增项目（demo示意）')}>{addButtonText || '新增项目'}</Button>}
-            {canImport && <Button icon={<ImportOutlined />} onClick={() => message.info('导入功能（demo示意）')}>导入</Button>}
+            {canImport && <Button icon={<ImportOutlined />} onClick={() => onImport ? onImport() : message.info('导入功能（demo示意）')}>导入</Button>}
             <Tooltip title="搜索"><Button type="text" icon={<SearchOutlined />} /></Tooltip>
             <Tooltip title="刷新"><Button type="text" icon={<ReloadOutlined />} onClick={() => window.location.reload()} /></Tooltip>
             <Popover content={columnPopoverContent} title={null} trigger="click"
@@ -298,6 +306,44 @@ export default function GenericProjectList({
           }}
         />
       </div>
+
+      {/* 退库确认弹窗 */}
+      <Modal
+        title={
+          <span style={{ color: '#d4380d' }}>
+            <ExclamationCircleOutlined style={{ marginRight: 8 }} />
+            确认退库
+          </span>
+        }
+        open={tuikuVisible}
+        onCancel={() => { setTuikuVisible(false); setTuikuRecord(null); setTuikuReason('') }}
+        okText="确认退库"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        onOk={() => {
+          message.success('已标记为退库')
+          setTuikuVisible(false)
+          setTuikuRecord(null)
+          setTuikuReason('')
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          确定将项目「<strong>{tuikuRecord?.projectName || tuikuRecord?.['项目名称'] || ''}</strong>」标记为退库吗？退库后进入退库项目列表。
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: '#595959', marginBottom: 6 }}>
+            退库说明 <span style={{ color: '#bfbfbf' }}>（非必填，最多500字）</span>
+          </div>
+          <Input.TextArea
+            value={tuikuReason}
+            onChange={(e) => setTuikuReason(e.target.value)}
+            placeholder="请输入退库原因（非必填）"
+            maxLength={500}
+            showCount
+            rows={4}
+          />
+        </div>
+      </Modal>
     </div>
   )
 }

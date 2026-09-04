@@ -1,31 +1,38 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Tabs, Descriptions, Button, Space, Tag, Modal, Form, Input, Select, Row, Col,
-  Timeline, message, Popconfirm, Typography, Empty
+  message
 } from 'antd'
 import {
-  ArrowLeftOutlined, EditOutlined, PlusOutlined, DeleteOutlined,
-  ExportOutlined, PauseCircleOutlined
+  ArrowLeftOutlined, EditOutlined, PlusOutlined,
+  ExportOutlined, PauseCircleOutlined, ExclamationCircleOutlined, RobotOutlined
 } from '@ant-design/icons'
 import mockData from '../mock/data.json'
 import TransferToZaitanModal from '../components/TransferToZaitanModal'
+import ProgressTimeline from '../components/ProgressTimeline'
+import ProgressSummaryModal from '../components/ProgressSummaryModal'
+import {
+  COLORS,
+  sectionTitleStyle,
+  descriptionsProps as baseDescriptionsProps,
+  pageCardStyle,
+  detailHeaderStyle,
+  detailHeaderLeftStyle,
+  progressModalProps,
+  progressContentFieldProps,
+  progressTextAreaProps,
+  PROGRESS_TYPE,
+} from '../constants/uiStyles'
 
 const { TextArea } = Input
 const { Option } = Select
-const { Text } = Typography
 
 const PROJECT_CATEGORY_OPTIONS = ['政策类', '投资类', '供地类', '其他']
 const CAPITAL_NATURE_OPTIONS = ['内资', '外资']
 const INDUSTRY_TYPE_OPTIONS = ['农业', '工业', '服务业']
 
 const CURRENT_USER = '投促局管理员'
-
-function formatTime(date) {
-  const d = new Date(date)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
 
 export default function MouhuaDetail() {
   const { id } = useParams()
@@ -64,14 +71,26 @@ export default function MouhuaDetail() {
   })
 
   const [progressList, setProgressList] = useState([
+    // 系统事件：项目录入
+    {
+      id: 'sys-create',
+      type: PROGRESS_TYPE.SYSTEM,
+      content: '新增项目',
+      reporter: project.reporter || '投促局 易成豪',
+      updateTime: project.reportTime || '2025-12-20 09:00',
+    },
     {
       id: 'prog-1',
+      type: PROGRESS_TYPE.NORMAL,
+      stage: '谋划阶段',
       content: '已完成项目初步方案，提交内部评审。',
       reporter: CURRENT_USER,
       updateTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: 'prog-2',
+      type: PROGRESS_TYPE.NORMAL,
+      stage: '谋划阶段',
       content: '对接企业方确认投资意向，企业表示将在下周实地考察。',
       reporter: '驻沪办 蔡威',
       updateTime: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
@@ -82,13 +101,12 @@ export default function MouhuaDetail() {
   const [editModalVisible, setEditModalVisible] = useState(false)
   const [progressModalVisible, setProgressModalVisible] = useState(false)
   const [transferModalVisible, setTransferModalVisible] = useState(false)
+  const [aiVisible, setAiVisible] = useState(false)
+  const [tuikuVisible, setTuikuVisible] = useState(false)
+  const [tuikuReason, setTuikuReason] = useState('')
   const [editingProgress, setEditingProgress] = useState(null)
   const [editLoading, setEditLoading] = useState(false)
   const [progressLoading, setProgressLoading] = useState(false)
-
-  const sortedProgressList = useMemo(() => {
-    return [...progressList].sort((a, b) => new Date(b.updateTime) - new Date(a.updateTime))
-  }, [progressList])
 
   const handleBack = () => navigate('/project/mouhua')
 
@@ -156,7 +174,14 @@ export default function MouhuaDetail() {
         message.success('进展已更新')
       } else {
         setProgressList(prev => [
-          { id: `prog-${Date.now()}`, content: values.content, reporter: CURRENT_USER, updateTime: now },
+          {
+            id: `prog-${Date.now()}`,
+            type: PROGRESS_TYPE.NORMAL,
+            stage: '谋划阶段',
+            content: values.content,
+            reporter: CURRENT_USER,
+            updateTime: now,
+          },
           ...prev,
         ])
         message.success('进展已添加')
@@ -184,37 +209,58 @@ export default function MouhuaDetail() {
     })
   }
   const handleTransferOk = () => {
+    // 写入系统事件：项目推进至在谈
+    setProgressList(prev => [
+      {
+        id: `sys-transfer-${Date.now()}`,
+        type: PROGRESS_TYPE.SYSTEM,
+        content: '项目推进至「在谈」阶段',
+        reporter: CURRENT_USER,
+        updateTime: new Date().toISOString(),
+      },
+      ...prev,
+    ])
     setTransferModalVisible(false)
     message.success('该项目已从谋划列表移至在谈列表，正在跳转...')
     setTimeout(() => navigate('/project/zaitan'), 1000)
   }
 
-  const handleTuiku = () => {
-    Modal.confirm({
-      title: '确认退库',
-      content: `确定将项目「${project.projectName}」标记为退库吗？退库后不可恢复。`,
-      okText: '确认退库', cancelText: '取消',
-      okButtonProps: { danger: true },
-      onOk: () => { message.success('已标记为退库（demo示意）'); navigate('/project/mouhua') },
-    })
+  const handleTuikuConfirm = () => {
+    setProgressList(prev => [
+      {
+        id: `sys-tuiku-${Date.now()}`,
+        type: PROGRESS_TYPE.SYSTEM,
+        content: '项目已被标记为退库' + (tuikuReason ? `：${tuikuReason}` : ''),
+        reporter: CURRENT_USER,
+        updateTime: new Date().toISOString(),
+      },
+      ...prev,
+    ])
+    message.success('已标记为退库（demo示意）')
+    setTuikuVisible(false)
+    setTuikuReason('')
+    setTimeout(() => navigate('/project/mouhua'), 800)
   }
 
   const formItemLayout = { labelCol: { span: 8 }, wrapperCol: { span: 16 } }
 
   return (
     <div className="page-container">
-      <div className="table-card" style={{ padding: '16px 24px 24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 16, borderBottom: '1px solid #f0f0f0', marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="table-card" style={pageCardStyle}>
+        <div style={detailHeaderStyle}>
+          <div style={detailHeaderLeftStyle}>
             <Button type="text" icon={<ArrowLeftOutlined />} onClick={handleBack} style={{ marginLeft: -8 }}>
               返回
             </Button>
             <span style={{ fontSize: 18, fontWeight: 600 }}>{project.projectName}</span>
-            <Tag color="blue" style={{ background: '#e6f4ff', color: '#1677ff', border: '1px solid #91caff', margin: 0 }}>{project.projectStatus}</Tag>
+            <Tag color="blue" style={{ background: COLORS.primaryLight, color: COLORS.primary, border: `1px solid ${COLORS.primaryBorder}`, margin: 0 }}>{project.projectStatus}</Tag>
           </div>
           <Space size={8}>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAddProgress}>
               进展汇报
+            </Button>
+            <Button className="ai-grad-btn" icon={<RobotOutlined />} onClick={() => setAiVisible(true)}>
+              AI 摘要
             </Button>
             <Button icon={<EditOutlined />} onClick={handleEditBasic}>
               编辑
@@ -222,7 +268,7 @@ export default function MouhuaDetail() {
             <Button icon={<ExportOutlined />} onClick={handleToZaitan}>
               转在谈
             </Button>
-            <Button danger icon={<PauseCircleOutlined />} onClick={handleTuiku}>
+            <Button danger icon={<PauseCircleOutlined />} onClick={() => { setTuikuReason(''); setTuikuVisible(true) }}>
               标记退库
             </Button>
           </Space>
@@ -266,79 +312,12 @@ export default function MouhuaDetail() {
               key: 'progress',
               label: '进展信息',
               children: (
-                <div>
-                  <div style={{ marginBottom: 20 }}>
-                    <Text type="secondary" style={{ fontSize: 13, color: '#8c8c8c' }}>共 {progressList.length} 条进展记录（按更新时间倒序）</Text>
-                  </div>
-                  {sortedProgressList.length === 0 ? (
-                    <Empty description="暂无进展记录，点击顶部「进展汇报」添加" style={{ padding: '60px 0' }} />
-                  ) : (
-                    <Timeline
-                      items={sortedProgressList.map(item => ({
-                        children: (
-                          <div style={{ paddingBottom: 24 }}>
-                            <div style={{
-                              background: '#fff',
-                              borderLeft: '3px solid #1677ff',
-                              padding: '12px 16px 10px',
-                              borderRadius: '0 4px 4px 0',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                            }}>
-                              <div style={{
-                                fontSize: 15,
-                                color: '#262626',
-                                lineHeight: 1.8,
-                                whiteSpace: 'pre-wrap',
-                                marginBottom: item.reporter === CURRENT_USER ? 10 : 8,
-                              }}>
-                                {item.content}
-                              </div>
-                              <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontSize: 12,
-                                color: '#bfbfbf',
-                              }}>
-                                <span>—— {item.reporter} · {formatTime(item.updateTime)}</span>
-                                {item.reporter === CURRENT_USER && (
-                                  <Space size={0}>
-                                    <Button
-                                      type="text"
-                                      size="small"
-                                      style={{ fontSize: 12, color: '#bfbfbf', padding: '0 4px', height: 'auto' }}
-                                      onClick={() => handleEditProgress(item)}
-                                      onMouseEnter={e => e.currentTarget.style.color = '#1677ff'}
-                                      onMouseLeave={e => e.currentTarget.style.color = '#bfbfbf'}
-                                    >
-                                      编辑
-                                    </Button>
-                                    <Popconfirm
-                                      title="确定删除这条进展记录吗？"
-                                      okText="删除" cancelText="取消"
-                                      okButtonProps={{ danger: true, size: 'small' }}
-                                      onConfirm={() => handleDeleteProgress(item)}
-                                    >
-                                      <Button
-                                        type="text"
-                                        size="small"
-                                        style={{ fontSize: 12, color: '#bfbfbf', padding: '0 4px', height: 'auto' }}
-                                        onMouseEnter={e => e.currentTarget.style.color = '#ff4d4f'}
-                                        onMouseLeave={e => e.currentTarget.style.color = '#bfbfbf'}
-                                      >
-                                        删除
-                                      </Button>
-                                    </Popconfirm>
-                                  </Space>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ),
-                      }))}
-                    />
-                  )}
-                </div>
+                <ProgressTimeline
+                  list={progressList}
+                  currentUser={CURRENT_USER}
+                  onEdit={handleEditProgress}
+                  onDelete={handleDeleteProgress}
+                />
               ),
             },
           ]}
@@ -412,22 +391,17 @@ export default function MouhuaDetail() {
       </Modal>
 
       <Modal
-        title={editingProgress ? '编辑进展' : '新增进展'}
-        open={progressModalVisible}
-        onOk={handleProgressOk}
-        onCancel={() => { setProgressModalVisible(false); progressForm.resetFields() }}
-        confirmLoading={progressLoading}
-        okText="保存" cancelText="取消"
-        width={600}
-        destroyOnClose
+        {...progressModalProps({
+          open: progressModalVisible,
+          projectName: editingProgress ? `${project.projectName}（编辑）` : project.projectName,
+          confirmLoading: progressLoading,
+          onOk: handleProgressOk,
+          onCancel: () => { setProgressModalVisible(false); progressForm.resetFields() },
+        })}
       >
-        <Form form={progressForm} layout="vertical" requiredMark={true} style={{ marginTop: 16 }}>
-          <Form.Item
-            label="进展内容"
-            name="content"
-            rules={[{ required: true, message: '请输入进展内容' }, { max: 500, message: '进展内容不超过500个字符' }]}
-          >
-            <TextArea rows={6} placeholder="请输入进展内容，最多500字" maxLength={500} showCount />
+        <Form form={progressForm} layout="vertical" requiredMark style={{ marginTop: 16 }}>
+          <Form.Item {...progressContentFieldProps}>
+            <Input.TextArea {...progressTextAreaProps} />
           </Form.Item>
         </Form>
       </Modal>
@@ -436,6 +410,60 @@ export default function MouhuaDetail() {
         onCancel={() => setTransferModalVisible(false)}
         onOk={handleTransferOk}
         projectData={project}
+      />
+
+      {/* 退库确认弹窗 */}
+      <Modal
+        title={
+          <span style={{ color: '#d4380d' }}>
+            <ExclamationCircleOutlined style={{ marginRight: 8 }} />
+            确认退库
+          </span>
+        }
+        open={tuikuVisible}
+        onCancel={() => { setTuikuVisible(false); setTuikuReason('') }}
+        okText="确认退库"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        onOk={handleTuikuConfirm}
+      >
+        <div style={{ marginBottom: 16 }}>
+          确定将项目「<strong>{project.projectName}</strong>」标记为退库吗？退库后不可恢复。
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: '#595959', marginBottom: 6 }}>
+            退库说明 <span style={{ color: '#bfbfbf' }}>（非必填，最多500字）</span>
+          </div>
+          <Input.TextArea
+            value={tuikuReason}
+            onChange={(e) => setTuikuReason(e.target.value)}
+            placeholder="请输入退库原因（非必填）"
+            maxLength={500}
+            showCount
+            rows={4}
+          />
+        </div>
+      </Modal>
+
+      {/* AI 月度进展摘要弹窗（严格按当前自然月） */}
+      <ProgressSummaryModal
+        open={aiVisible}
+        onCancel={() => setAiVisible(false)}
+        projectName={project.projectName}
+        stageLabel="谋划阶段"
+        items={progressList}
+        onSave={(content) => {
+          const now = new Date()
+          const pad2 = (n) => String(n).padStart(2, '0')
+          const ts = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`
+          setProgressList((prev) => [{
+            id: `ai-${Date.now()}`,
+            content,
+            reporter: CURRENT_USER,
+            updateTime: ts,
+            stage: '谋划阶段',
+          }, ...prev])
+        }}
       />
     </div>
   )

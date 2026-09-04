@@ -5,9 +5,13 @@ import MouhuaDetail from './pages/MouhuaDetail'
 import Zaitan from './pages/Zaitan'
 import ZaitanDetail from './pages/ZaitanDetail'
 import Qianyue from './pages/Qianyue'
+import QianyueDetail from './pages/QianyueDetail'
 import Luodi from './pages/Luodi'
+import LuodiDetail from './pages/LuodiDetail'
 import Yanpan from './pages/Yanpan'
+import YanpanDetail from './pages/YanpanDetail'
 import Tuiku from './pages/Tuiku'
+import TuikuDetail from './pages/TuikuDetail'
 import Jixiao from './pages/Jixiao'
 import DashboardProject from './pages/DashboardProject'
 import DashboardPerf from './pages/DashboardPerf'
@@ -29,9 +33,13 @@ function App() {
         <Route path="project/zaitan" element={<Zaitan />} />
         <Route path="project/zaitan/detail/:id" element={<ZaitanDetail />} />
         <Route path="project/qianyue" element={<Qianyue />} />
+        <Route path="project/qianyue/detail/:id" element={<QianyueDetail />} />
         <Route path="project/luodi" element={<Luodi />} />
+        <Route path="project/luodi/detail/:id" element={<LuodiDetail />} />
         <Route path="project/yanpan" element={<Yanpan />} />
+        <Route path="project/yanpan/detail/:id" element={<YanpanDetail />} />
         <Route path="project/tuiku" element={<Tuiku />} />
+        <Route path="project/tuiku/detail/:id" element={<TuikuDetail />} />
         <Route path="performance" element={<Jixiao />} />
         <Route path="dashboard/project" element={<DashboardProject />} />
         <Route path="dashboard/perf" element={<DashboardPerf />} />

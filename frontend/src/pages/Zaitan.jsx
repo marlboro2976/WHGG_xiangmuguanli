@@ -31,10 +31,16 @@ import {
   FileTextOutlined,
   PauseCircleOutlined,
   ImportOutlined,
+  SendOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import mockData from '../mock/data.json'
 import UpdateDecisionModal from '../components/UpdateDecisionModal'
 import ZaitanEditModal from '../components/ZaitanEditModal'
+import AssignModal from '../components/AssignModal'
+import ZhuanQianyueModal from '../components/ZhuanQianyueModal'
+import ImportModal from '../components/ImportModal'
+import { useViewRole, msgStore, useImported } from '../store/viewStore'
 
 const { RangePicker } = DatePicker
 
@@ -63,6 +69,11 @@ const DEFAULT_VISIBLE_KEYS = ALL_COLUMNS.map(c => c.key)
 
 export default function Zaitan() {
   const navigate = useNavigate()
+  const { role, isSponsor, myDeptKey } = useViewRole()
+
+  // 接收方视角下，分派给当前单位的项目id mock（对应详情页中a-kcj/a-qfj/a-wljs等的项目是id=1）
+  // 简化：所有mock接收方都能看到id=1这个项目
+  const ASSIGNED_PROJECT_IDS = isSponsor ? null : new Set(['1'])
   const [filters, setFilters] = useState({
     projectName: '',
     industryType: undefined,
@@ -87,9 +98,20 @@ export default function Zaitan() {
   const [currentProject, setCurrentProject] = useState(null)
   const [decisionModalVisible, setDecisionModalVisible] = useState(false)
   const [editModalVisible, setEditModalVisible] = useState(false)
+  const [assignModalVisible, setAssignModalVisible] = useState(false)
+  const [zhuanQianyueVisible, setZhuanQianyueVisible] = useState(false)
+  const [importVisible, setImportVisible] = useState(false)
+  const [tuikuVisible, setTuikuVisible] = useState(false)
+  const [tuikuReason, setTuikuReason] = useState('')
+  const imported = useImported()
 
   const data = useMemo(() => {
-    return mockData.zaitan.map((item, idx) => ({
+    // Excel导入成功的项目置顶展示
+    const raw = [
+      ...(imported?.stage === 'zaitan' ? imported.successProjects : []),
+      ...mockData.zaitan,
+    ]
+    return raw.map((item, idx) => ({
       key: item.id,
       index: idx + 1,
       reporter: item['申报人'] || '-',
@@ -121,10 +143,12 @@ export default function Zaitan() {
       acceptArea: item['承接区'] || '-',
       projectCategory: ['政策类', '投资类', '供地类', '其他'][idx % 4],
     }))
-  }, [])
+  }, [imported])
 
   const filteredData = useMemo(() => {
     return data.filter(r => {
+      // 接收方视角：只展示分派给自己的项目
+      if (ASSIGNED_PROJECT_IDS && !ASSIGNED_PROJECT_IDS.has(String(r.key))) return false
       if (filters.projectName && !r.projectName.includes(filters.projectName)) return false
       if (filters.industryType && r.industryType !== filters.industryType) return false
       if (filters.category && r.industryCategory !== filters.category) return false
@@ -135,7 +159,7 @@ export default function Zaitan() {
       if (filters.maxAmount !== undefined && filters.maxAmount !== '' && amt > Number(filters.maxAmount)) return false
       return true
     })
-  }, [data, filters])
+  }, [data, filters, ASSIGNED_PROJECT_IDS])
 
   // 分页数据
   const pageData = useMemo(() => {
@@ -171,9 +195,16 @@ export default function Zaitan() {
   }
 
   const getMoreMenuItems = (record) => {
+    if (!isSponsor) {
+      // 接收方视角：只能查看详情（从项目名称或详情入口进入），更多菜单不提供操作
+      return [
+        { key: 'view', icon: <EyeOutlined />, label: '查看详情' },
+      ]
+    }
     const items = [
       { key: 'report', icon: <FileTextOutlined />, label: '进展汇报' },
       { key: 'edit', icon: <EditOutlined />, label: '编辑' },
+      { key: 'assign', icon: <SendOutlined />, label: '分派' },
     ]
     if (canUpdateDecision(record)) {
       items.push({ key: 'decision', icon: <SettingOutlined />, label: '更新决策节点' })
@@ -184,14 +215,11 @@ export default function Zaitan() {
 
   const handleMoreClick = (e, record) => {
     setCurrentProject(record)
-    if (e.key === 'stop') {
-      Modal.confirm({
-        title: '确认退库',
-        content: `确定将项目「${record.projectName}」标记为退库吗？退库后不可恢复。`,
-        okText: '确认退库', cancelText: '取消',
-        okButtonProps: { danger: true },
-        onOk: () => message.success('已标记为退库'),
-      })
+    if (e.key === 'view') {
+      navigate(`/project/zaitan/detail/${record.key}`)
+    } else if (e.key === 'stop') {
+      setTuikuReason('')
+      setTuikuVisible(true)
     } else if (e.key === 'report') {
       progressForm.resetFields()
       setProgressModalVisible(true)
@@ -199,7 +227,26 @@ export default function Zaitan() {
       setDecisionModalVisible(true)
     } else if (e.key === 'edit') {
       setEditModalVisible(true)
+    } else if (e.key === 'assign') {
+      setAssignModalVisible(true)
     }
+  }
+
+  const handleAssignOk = ({ targets }) => {
+    setAssignModalVisible(false)
+    setCurrentProject(null)
+    // 给每个接收单位发消息（列表页分派的简易处理，不分派记录持久化到详情）
+    targets.forEach(t => {
+      msgStore.addMessage({
+        toDeptKey: t.unitKey,
+        title: '【协作任务分派】',
+        content: `您有一条来自"市投促局"的"${currentProject?.projectName || ''}"协作配合任务，请及时查看并跟进处理。`,
+        projectId: String(currentProject?.key || ''),
+        projectName: currentProject?.projectName || '',
+        type: 'assign',
+      })
+    })
+    message.success(`已成功分派给 ${targets.length} 个单位`)
   }
 
   const handleProgressOk = async () => {
@@ -263,21 +310,26 @@ export default function Zaitan() {
           <span style={actionLinkStyle} onClick={() => navigate(`/project/zaitan/detail/${record.key}`)}>
             <EyeOutlined /> 详情
           </span>
-          <span style={actionLinkStyle} onClick={() => {
-            Modal.confirm({
-              title: '转签约',
-              content: `确定将项目「${record.projectName}」推进至签约阶段吗？需要补充签约阶段必填字段。`,
-              okText: '去补充信息', cancelText: '取消',
-              onOk: () => message.success('已进入签约信息补全流程（demo示意）'),
-            })
-          }}>
-            <EditOutlined /> 签约
-          </span>
-          <Dropdown menu={{ items: getMoreMenuItems(record), onClick: (e) => handleMoreClick(e, record) }} trigger={['click']}>
-            <span style={actionLinkStyle} onClick={(e) => e.preventDefault()}>
-              <MoreOutlined />
-            </span>
-          </Dropdown>
+          {isSponsor && (
+            <>
+              <span style={actionLinkStyle} onClick={() => {
+                setCurrentProject(record)
+                Modal.confirm({
+                  title: '转签约',
+                  content: `确定将项目「${record.projectName}」推进至签约阶段吗？需要补充签约阶段必填字段信息。`,
+                  okText: '去补充信息', cancelText: '取消',
+                  onOk: () => setZhuanQianyueVisible(true),
+                })
+              }}>
+                <EditOutlined /> 签约
+              </span>
+              <Dropdown menu={{ items: getMoreMenuItems(record), onClick: (e) => handleMoreClick(e, record) }} trigger={['click']}>
+                <span style={actionLinkStyle} onClick={(e) => e.preventDefault()}>
+                  <MoreOutlined />
+                </span>
+              </Dropdown>
+            </>
+          )}
         </Space>
       )
     }
@@ -399,9 +451,11 @@ export default function Zaitan() {
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
           </Button>
-          <Button icon={<ExportOutlined />} onClick={() => message.success('导出任务已提交，请在消息中心查看')}>
-            导出
-          </Button>
+          {isSponsor && (
+            <Button icon={<ExportOutlined />} onClick={() => message.success('导出任务已提交，请在消息中心查看')}>
+              导出
+            </Button>
+          )}
           <Button icon={<ReloadOutlined />} onClick={handleReset}>
             重置
           </Button>
@@ -423,12 +477,7 @@ export default function Zaitan() {
             )}
           </div>
           <Space size={8}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => message.info('新增项目（demo示意）')}>
-              新增项目
-            </Button>
-            <Button icon={<ImportOutlined />} onClick={() => message.info('导入功能（demo示意）')}>
-              导入
-            </Button>
+            <Button icon={<ImportOutlined />} onClick={() => setImportVisible(true)}>导入</Button>
             <Tooltip title="搜索">
               <Button type="text" icon={<SearchOutlined />} />
             </Tooltip>
@@ -516,6 +565,73 @@ export default function Zaitan() {
         onOk={handleEditOk}
         projectData={currentProject}
       />
+
+      {/* 列表页弹窗：分派 */}
+      <AssignModal
+        key={`list-assign-${assignModalVisible}`}
+        open={assignModalVisible}
+        projectName={currentProject?.projectName}
+        onCancel={() => { setAssignModalVisible(false); setCurrentProject(null) }}
+        onOk={handleAssignOk}
+      />
+
+      {/* 列表页弹窗：转签约 */}
+      <ZhuanQianyueModal
+        key={`list-zhuanqianyue-${zhuanQianyueVisible}`}
+        open={zhuanQianyueVisible}
+        projectData={currentProject}
+        onCancel={() => { setZhuanQianyueVisible(false); setCurrentProject(null) }}
+        onOk={() => {
+          message.success('转签约成功！项目已进入签约阶段（演示）')
+          setZhuanQianyueVisible(false)
+          setCurrentProject(null)
+        }}
+      />
+
+      {/* 列表页弹窗：导入（含判重检测） */}
+      <ImportModal
+        open={importVisible}
+        stage="zaitan"
+        stageLabel="在谈"
+        onCancel={() => setImportVisible(false)}
+      />
+
+      {/* 列表页弹窗：退库确认 */}
+      <Modal
+        title={
+          <span style={{ color: '#d4380d' }}>
+            <ExclamationCircleOutlined style={{ marginRight: 8 }} />
+            确认退库
+          </span>
+        }
+        open={tuikuVisible}
+        onCancel={() => { setTuikuVisible(false); setTuikuReason('') }}
+        okText="确认退库"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        onOk={() => {
+          message.success('已标记为退库')
+          setTuikuVisible(false)
+          setTuikuReason('')
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          确定将项目「<strong>{currentProject?.projectName}</strong>」标记为退库吗？退库后不可恢复。
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: '#595959', marginBottom: 6 }}>
+            退库说明 <span style={{ color: '#bfbfbf' }}>（非必填，最多500字）</span>
+          </div>
+          <Input.TextArea
+            value={tuikuReason}
+            onChange={(e) => setTuikuReason(e.target.value)}
+            placeholder="请输入退库原因（非必填）"
+            maxLength={500}
+            showCount
+            rows={4}
+          />
+        </div>
+      </Modal>
     </div>
   )
 }

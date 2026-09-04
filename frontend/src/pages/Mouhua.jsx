@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Tag, Tooltip, Space, Divider, Modal, Form, Input, Select, Cascader, Row, Col, message, Dropdown } from 'antd'
-import { EyeOutlined, FileTextOutlined, EditOutlined, MoreOutlined, PauseCircleOutlined } from '@ant-design/icons'
+import { EyeOutlined, FileTextOutlined, EditOutlined, MoreOutlined, PauseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import GenericProjectList from '../components/GenericProjectList'
 import TransferToZaitanModal from '../components/TransferToZaitanModal'
 import mockData from '../mock/data.json'
@@ -478,6 +478,9 @@ export default function Mouhua() {
   const [currentTransferProject, setCurrentTransferProject] = useState(null)
   const [transferredKeys, setTransferredKeys] = useState([])
   const [currentProgressProject, setCurrentProgressProject] = useState(null)
+  const [tuikuVisible, setTuikuVisible] = useState(false)
+  const [tuikuRecord, setTuikuRecord] = useState(null)
+  const [tuikuReason, setTuikuReason] = useState('')
   const capitalNature = Form.useWatch('capitalNature', form)
 
   const handleViewDetail = (record) => {
@@ -540,13 +543,9 @@ export default function Mouhua() {
         ]
         const handleMoreClick = (e) => {
           if (e.key === 'stop') {
-            Modal.confirm({
-              title: '确认退库',
-              content: `确定将项目「${record.projectName}」标记为退库吗？退库后不可恢复。`,
-              okText: '确认退库', cancelText: '取消',
-              okButtonProps: { danger: true },
-              onOk: () => message.success('已标记为退库（demo示意）'),
-            })
+            setTuikuRecord(record)
+            setTuikuReason('')
+            setTuikuVisible(true)
           } else if (e.key === 'report') {
             setCurrentProgressProject(record)
             progressForm.resetFields()
@@ -800,6 +799,44 @@ export default function Mouhua() {
         onOk={handleTransferOk}
         projectData={currentTransferProject}
       />
+
+      {/* 退库确认弹窗 */}
+      <Modal
+        title={
+          <span style={{ color: '#d4380d' }}>
+            <ExclamationCircleOutlined style={{ marginRight: 8 }} />
+            确认退库
+          </span>
+        }
+        open={tuikuVisible}
+        onCancel={() => { setTuikuVisible(false); setTuikuRecord(null); setTuikuReason('') }}
+        okText="确认退库"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        onOk={() => {
+          message.success('已标记为退库（demo示意）')
+          setTuikuVisible(false)
+          setTuikuRecord(null)
+          setTuikuReason('')
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          确定将项目「<strong>{tuikuRecord?.projectName}</strong>」标记为退库吗？退库后不可恢复。
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: '#595959', marginBottom: 6 }}>
+            退库说明 <span style={{ color: '#bfbfbf' }}>（非必填，最多500字）</span>
+          </div>
+          <Input.TextArea
+            value={tuikuReason}
+            onChange={(e) => setTuikuReason(e.target.value)}
+            placeholder="请输入退库原因（非必填）"
+            maxLength={500}
+            showCount
+            rows={4}
+          />
+        </div>
+      </Modal>
     </>
   )
 }
